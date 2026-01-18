@@ -1,0 +1,836 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Discovery Parks - Wind Watcher</title>
+  <style>
+    :root{
+      /* Light mode palette */
+      --bg:#f6f7fb;
+      --card:#ffffff;
+      --muted:#5c677a;
+      --text:#111827;
+      --line:#d7dde7;
+      --danger:#d92d20;
+      --warning:#d97706;
+      --ok:#0f766e;
+      --chip:#f0f3f9;
+    }
+
+    *{box-sizing:border-box}
+    html{height:100%; background:var(--bg);}
+    body{min-height:100vh; margin:0; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; background:transparent; color:var(--text);}
+
+    /* Bulletproof full-viewport background (Canvas/iframe safe) */
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      background:var(--bg);
+      z-index:-1;
+    }
+
+    header{padding:18px 18px 10px; border-bottom:1px solid var(--line);}
+    .wrap{padding:14px 18px 22px; max-width:1100px; margin:0 auto;}
+
+    .title-row{display:flex; align-items:flex-start; gap:14px;}
+    .title-logo{height:44px; width:auto; display:block;}
+    .title-text{display:flex; flex-direction:column; gap:2px;}
+    h1{margin:0;font-size:20px; font-weight:800; letter-spacing:-0.2px; line-height:1.05}
+    h2{margin:0;font-size:16px; font-weight:750; letter-spacing:-0.1px; line-height:1.1; color:var(--muted)}
+
+    .controls{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:12px 0 14px; justify-content:space-between;}
+    .controls-left{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+    .controls-right{display:flex; gap:10px; align-items:center}
+
+    select,input,button{background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:13px;}
+    input{min-width:220px;}
+    button{cursor:pointer; font-weight:600;}
+    button:hover{border-color:#8aa4d6;}
+
+    .small{font-size:12px; color:var(--muted)}
+    .muted{color:var(--muted)}
+    .right{white-space:nowrap}
+    .nowrap{white-space:nowrap}
+
+    .stats{display:flex; flex-wrap:wrap; gap:10px; margin:8px 0 14px; align-items:center}
+    .chip{background:var(--chip); border:1px solid var(--line); border-radius:999px; padding:7px 10px; font-size:12px; color:var(--muted)}
+    .chip b{color:var(--text)}
+
+    /* Toggle chips */
+    .toggle{display:inline-flex; align-items:center; gap:8px; padding:8px 12px; background:var(--card); border:1px solid var(--line); border-radius:999px; cursor:pointer; font-size:12px; color:var(--muted); user-select:none}
+    .toggle input{display:none}
+    .toggle .dot{width:16px; height:16px; border-radius:999px; background:var(--line); position:relative}
+    .toggle .dot::after{content:''; position:absolute; inset:3px; border-radius:999px; background:transparent}
+
+    .toggle.warn input:checked + .dot{background:var(--warning)}
+    .toggle.warn input:checked + .dot::after{background:#fff}
+    .toggle.warn.active{border-color:rgba(217,119,6,.55); color:var(--warning)}
+
+    .toggle.danger input:checked + .dot{background:var(--danger)}
+    .toggle.danger input:checked + .dot::after{background:#fff}
+    .toggle.danger.active{border-color:rgba(217,45,32,.55); color:var(--danger)}
+
+    .card{background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden;}
+    table{width:100%; border-collapse:collapse;}
+    th,td{padding:10px 12px; border-bottom:1px solid var(--line); font-size:13px; vertical-align:top}
+    th{color:var(--muted); text-align:left; font-weight:600;}
+    tr:last-child td{border-bottom:none;}
+
+    /* Sortable headers */
+    th.sortable{cursor:pointer; user-select:none}
+    th.sortable:hover{background:rgba(138,164,214,.15)}
+    .sort-ind{display:inline-block; margin-left:6px; font-size:11px; color:var(--muted)}
+
+    .row-top{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+    .badge{display:inline-flex; gap:6px; align-items:center; font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted)}
+    .badge.warning{border-color:rgba(217,119,6,.55); color:var(--warning)}
+    .badge.danger{border-color:rgba(217,45,32,.55); color:var(--danger)}
+
+    .dangerCell{color:var(--danger); font-weight:800;}
+    .warningCell{color:var(--warning); font-weight:800;}
+    .okCell{color:var(--ok); font-weight:700;}
+
+    /* Info button + modal */
+    .icon-btn{display:inline-flex; align-items:center; justify-content:center; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px; font-size:14px; font-weight:600; cursor:pointer; color:var(--text)}
+    .icon-btn:hover{border-color:#8aa4d6;}
+
+    .modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; padding:18px; z-index:9999;}
+    .modal.open{display:flex;}
+    .modal-backdrop{position:absolute; inset:0; background:rgba(17,24,39,.38);}
+    .modal-card{position:relative; width:min(720px, 100%); background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.18); overflow:hidden;}
+    .modal-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--line)}
+    .modal-title{margin:0; font-size:14px; font-weight:800;}
+    .modal-close{border-radius:10px; padding:8px 10px;}
+    .modal-body{padding:14px 16px; color:var(--text);}
+    .modal-body p{margin:0 0 10px; color:var(--muted); font-size:13px; line-height:1.45}
+    .modal-body ul{margin:8px 0 0 18px; padding:0; color:var(--muted); font-size:13px; line-height:1.45}
+    .modal-body li{margin:6px 0}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="title-row">
+        <img class="title-logo" src="https://careers.gdaygroup.com.au/files/images/Logos/_800x600_fit_center-center_none/Discovery-Parks-Full-Colour-Portrait.png" alt="Discovery Parks logo" />
+        <div class="title-text">
+          <h1>Discovery Parks</h1>
+          <h2>Wind Watcher</h2>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="controls">
+      <div class="controls-left">
+        <label class="small">State</label>
+        <select id="stateFilter">
+          <option value="ALL">All</option>
+          <option value="ACT">ACT</option>
+          <option value="NSW">NSW</option>
+          <option value="NT">NT</option>
+          <option value="QLD">QLD</option>
+          <option value="SA" selected>SA</option>
+          <option value="TAS">TAS</option>
+          <option value="VIC">VIC</option>
+          <option value="WA">WA</option>
+        </select>
+
+        <label class="small">Search</label>
+        <input id="textFilter" placeholder="Filter by park name…" />
+      </div>
+
+      <div class="controls-right">
+        <span id="status" class="small"></span>
+        <button id="refreshBtn" type="button">↻ Refresh</button>
+        <button id="infoBtn" class="icon-btn" type="button" aria-haspopup="dialog" aria-controls="infoModal" title="Information" aria-label="Information">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable" data-key="name" style="width:26%">Park <span class="sort-ind" data-ind="name"></span></th>
+            <th class="sortable" data-key="state" style="width:8%">State <span class="sort-ind" data-ind="state"></span></th>
+            <th class="sortable right" data-key="windKmh" style="width:13%">Wind <span class="sort-ind" data-ind="windKmh"></span></th>
+            <th class="sortable right" data-key="gustKmh" style="width:13%">Gust <span class="sort-ind" data-ind="gustKmh"></span></th>
+            <th class="sortable" data-key="stationName" style="width:26%">Station <span class="sort-ind" data-ind="stationName"></span></th>
+            <th style="width:14%">Updated</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Info modal (contains the hidden "Uses BOM..." + Notes content) -->
+  <div id="infoModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+    <div class="modal-backdrop" data-close="1"></div>
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="modal-title" id="infoTitle">About Wind Watcher</div>
+        <button id="infoClose" class="icon-btn modal-close" type="button">Close</button>
+      </div>
+      <div class="modal-body">
+        <p>
+          Uses Bureau of Meteorology (BOM) data (<span class="nowrap">api.weather.bom.gov.au</span>). Wind and gust are in km/h.
+          <span style="color:var(--warning); font-weight:800">Warning</span> above <span id="warningValue">40</span> and
+          <span style="color:var(--danger); font-weight:800">Danger</span> above <span id="dangerValue">50</span>.
+        </p>
+        <ul>
+          <li>This is <b>latest observed wind and gust</b>, not a forecast.</li>
+          <li>Some parks may show <b>No BOM match</b> if the location search doesn’t find a good hit. Fix by tweaking that park’s <b>searchTerm</b> in the code.</li>
+          <li>If BOM temporarily blocks requests, wait a minute and refresh. The loader is deliberately throttled.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // IMPORTANT: Canvas blocks direct calls to BOM. This app uses your Cloudflare Worker.
+  const PROXY_BASE = "https://bom-proxy.mcardlej.workers.dev";
+
+  // BOM endpoint (official)
+  const BOM_BASE = "https://api.weather.bom.gov.au/v1";
+
+  // ===== Config =====
+  // Thresholds are km/h. Change these two constants and the whole app updates.
+  const WARNING_KMH = 40;
+  const DANGER_KMH  = 50;
+  // ==================
+
+  // --- Park list
+  const PARKS = [
+    // NSW
+    { name: "Ballina", state: "NSW", searchTerm: "Ballina" },
+    { name: "Burrill Lake, Ulladulla", state: "NSW", searchTerm: "Ulladulla" },
+    { name: "Byron Bay", state: "NSW", searchTerm: "Byron Bay" },
+    { name: "Casino", state: "NSW", searchTerm: "Casino" },
+    { name: "Dubbo", state: "NSW", searchTerm: "Dubbo" },
+    { name: "Eden", state: "NSW", searchTerm: "Eden" },
+    { name: "Emerald Beach", state: "NSW", searchTerm: "Emerald Beach" },
+    { name: "Forster", state: "NSW", searchTerm: "Forster" },
+    { name: "Gerroa", state: "NSW", searchTerm: "Gerroa" },
+    { name: "Harrington Beach", state: "NSW", searchTerm: "Harrington" },
+    { name: "Horseshoe Lagoon", state: "NSW", searchTerm: "Horseshoe Lagoon" },
+    { name: "Jindabyne", state: "NSW", searchTerm: "Jindabyne" },
+    { name: "Lake Hume, NSW", state: "NSW", searchTerm: "Lake Hume" },
+    { name: "Lane Cove", state: "NSW", searchTerm: "Lane Cove" },
+    { name: "Maidens Inn, Moama", state: "NSW", searchTerm: "Moama" },
+    { name: "Moama Waters", state: "NSW", searchTerm: "Moama" },
+    { name: "Moama West", state: "NSW", searchTerm: "Moama" },
+    { name: "Narooma Beach", state: "NSW", searchTerm: "Narooma" },
+    { name: "Pambula Beach", state: "NSW", searchTerm: "Pambula" },
+
+    // ACT
+    { name: "Canberra", state: "ACT", searchTerm: "Canberra" },
+
+    // NT
+    { name: "Alice Springs", state: "NT", searchTerm: "Alice Springs" },
+    { name: "Darwin", state: "NT", searchTerm: "Darwin" },
+    { name: "Glen Helen", state: "NT", searchTerm: "Alice Springs" },
+    { name: "Katherine", state: "NT", searchTerm: "Katherine" },
+    { name: "Kings Canyon", state: "NT", searchTerm: "Kings Canyon" },
+
+    // QLD
+    { name: "Airlie Beach", state: "QLD", searchTerm: "Airlie Beach" },
+    { name: "Argylla", state: "QLD", searchTerm: "Argylla" },
+    { name: "Ayr", state: "QLD", searchTerm: "Ayr" },
+    { name: "Bargara", state: "QLD", searchTerm: "Bargara" },
+    { name: "Biloela", state: "QLD", searchTerm: "Biloela" },
+    { name: "Blackwater", state: "QLD", searchTerm: "Blackwater" },
+    { name: "Cloncurry", state: "QLD", searchTerm: "Cloncurry" },
+    { name: "Coolwaters, Yeppoon", state: "QLD", searchTerm: "Yeppoon" },
+    { name: "Emerald", state: "QLD", searchTerm: "Emerald" },
+    { name: "Fraser Street, Hervey Bay", state: "QLD", searchTerm: "Hervey Bay" },
+    { name: "Lake Tinaroo", state: "QLD", searchTerm: "Tinaroo" },
+    { name: "Mackay", state: "QLD", searchTerm: "Mackay" },
+    { name: "Mount Isa", state: "QLD", searchTerm: "Mount Isa" },
+    { name: "Mount Surprise", state: "QLD", searchTerm: "Mount Surprise" },
+    { name: "Rockhampton", state: "QLD", searchTerm: "Rockhampton" },
+    { name: "Tannum Sands", state: "QLD", searchTerm: "Tannum Sands" },
+    { name: "Townsville", state: "QLD", searchTerm: "Townsville" },
+    { name: "Undara", state: "QLD", searchTerm: "Undara" },
+
+    // SA
+    { name: "Adelaide Beachfront", state: "SA", searchTerm: "Adelaide" },
+    { name: "Barossa Valley", state: "SA", searchTerm: "Tanunda" },
+    { name: "Clare", state: "SA", searchTerm: "Clare" },
+    { name: "Coffin Bay", state: "SA", searchTerm: "Coffin Bay" },
+    { name: "Goolwa", state: "SA", searchTerm: "Goolwa" },
+    { name: "Hahndorf", state: "SA", searchTerm: "Hahndorf" },
+    { name: "Kangaroo Island", state: "SA", searchTerm: "Kingscote" },
+    { name: "Lake Bonney", state: "SA", searchTerm: "Lake Bonney" },
+    { name: "McCracken Resort", state: "SA", searchTerm: "Victor Harbor" },
+    { name: "Port Augusta", state: "SA", searchTerm: "Port Augusta" },
+    { name: "Renmark Riverfront", state: "SA", searchTerm: "Renmark" },
+    { name: "Robe", state: "SA", searchTerm: "Robe" },
+    { name: "Roxby Downs", state: "SA", searchTerm: "Roxby Downs" },
+    { name: "Streaky Bay Foreshore", state: "SA", searchTerm: "Streaky Bay" },
+    { name: "West Beach Parks", state: "SA", searchTerm: "West Beach" },
+    { name: "Whyalla Foreshore", state: "SA", searchTerm: "Whyalla" },
+    { name: "Wilpena Pound", state: "SA", searchTerm: "Wilpena" },
+
+    // TAS
+    { name: "Cradle Mountain", state: "TAS", searchTerm: "Cradle Mountain" },
+    { name: "Cradle Mountain Village", state: "TAS", searchTerm: "Cradle Mountain" },
+    { name: "Devonport", state: "TAS", searchTerm: "Devonport" },
+    { name: "Hadspen", state: "TAS", searchTerm: "Hadspen" },
+    { name: "Hobart", state: "TAS", searchTerm: "Hobart" },
+    { name: "Mornington Hobart", state: "TAS", searchTerm: "Mornington" },
+
+    // VIC
+    { name: "Bright", state: "VIC", searchTerm: "Bright" },
+    { name: "Echuca", state: "VIC", searchTerm: "Echuca" },
+    { name: "Geelong", state: "VIC", searchTerm: "Geelong" },
+    { name: "Lake Hume, VIC", state: "VIC", searchTerm: "Lake Hume" },
+    { name: "Melbourne", state: "VIC", searchTerm: "Melbourne" },
+    { name: "Mildura, Buronga Riverside", state: "VIC", searchTerm: "Mildura" },
+    { name: "Mount Buffalo", state: "VIC", searchTerm: "Mount Buffalo" },
+    { name: "Nagambie Lakes", state: "VIC", searchTerm: "Nagambie" },
+    { name: "Warrnambool", state: "VIC", searchTerm: "Warrnambool" },
+
+    // WA
+    { name: "Broome", state: "WA", searchTerm: "Broome" },
+    { name: "Bunbury Foreshore", state: "WA", searchTerm: "Bunbury" },
+    { name: "Carnarvon", state: "WA", searchTerm: "Carnarvon" },
+    { name: "Coogee Beach", state: "WA", searchTerm: "Coogee" },
+    { name: "Lake Kununurra", state: "WA", searchTerm: "Kununurra" },
+    { name: "Perth Airport", state: "WA", searchTerm: "Perth Airport" },
+    { name: "Pilbara, Karratha", state: "WA", searchTerm: "Karratha" },
+    { name: "Port Hedland", state: "WA", searchTerm: "Port Hedland" },
+    { name: "Swan Valley", state: "WA", searchTerm: "Swan Valley" }
+  ];
+
+  const els = {
+    stateFilter: document.getElementById('stateFilter'),
+    textFilter: document.getElementById('textFilter'),
+    refreshBtn: document.getElementById('refreshBtn'),
+    status: document.getElementById('status'),
+    tbody: document.getElementById('tbody'),
+    stats: document.getElementById('stats'),
+    infoBtn: document.getElementById('infoBtn'),
+    infoModal: document.getElementById('infoModal'),
+    infoClose: document.getElementById('infoClose'),
+  };
+
+  const cache = { locations: new Map() };
+  let allRows = [];
+
+  // Sorting (applies after filters). Updated column is intentionally not sortable.
+  let sortKey = null; // null = default (State then Park)
+  let sortDir = 'asc';
+
+  // Filter toggles (live in the stats row)
+  let showWarningParks = false;
+  let showDangerParks = false;
+
+  function setStatus(msg){
+    els.status.textContent = msg || '';
+  }
+
+  function formatKmh(v){
+    if (v === null || v === undefined || Number.isNaN(v)) return '—';
+    return `${Math.round(v)} km/h`;
+  }
+
+  function levelFor(v){
+    if (v === null || v === undefined || Number.isNaN(v)) return 'none';
+    if (v > DANGER_KMH) return 'danger';
+    if (v > WARNING_KMH) return 'warning';
+    return 'ok';
+  }
+
+  function rowLevel(row){
+    const wl = levelFor(row.windKmh);
+    const gl = levelFor(row.gustKmh);
+    if (wl === 'danger' || gl === 'danger') return 'danger';
+    if (wl === 'warning' || gl === 'warning') return 'warning';
+    if (wl === 'ok' || gl === 'ok') return 'ok';
+    return 'none';
+  }
+
+  function cellClassFor(v){
+    const lvl = levelFor(v);
+    if (lvl === 'danger') return 'dangerCell';
+    if (lvl === 'warning') return 'warningCell';
+    if (lvl === 'ok') return 'okCell';
+    return '';
+  }
+
+  function escapeHtml(s){
+    return String(s)
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'",'&#039;');
+  }
+
+  function getSortValue(row, key){
+    switch(key){
+      case 'name': return row.name;
+      case 'state': return row.state;
+      case 'windKmh': return row.windKmh;
+      case 'gustKmh': return row.gustKmh;
+      case 'stationName': return row.stationName;
+      default: return null;
+    }
+  }
+
+  function sortRows(rows){
+    const key = sortKey;
+    const dir = sortDir;
+
+    // Default sort: State then Park
+    if (!key){
+      rows.sort((a,b) => a.state.localeCompare(b.state) || a.name.localeCompare(b.name));
+      return rows;
+    }
+
+    const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
+
+    rows.sort((a,b) => {
+      let av = getSortValue(a, key);
+      let bv = getSortValue(b, key);
+
+      // Null/undefined always last
+      const aNull = (av === null || av === undefined || Number.isNaN(av));
+      const bNull = (bv === null || bv === undefined || Number.isNaN(bv));
+      if (aNull && bNull) return 0;
+      if (aNull) return 1;
+      if (bNull) return -1;
+
+      let c = 0;
+      if (isNum(av) && isNum(bv)) c = av - bv;
+      else c = String(av).localeCompare(String(bv), 'en', { sensitivity: 'base' });
+
+      // Stable tie-breakers
+      if (c === 0) c = a.state.localeCompare(b.state) || a.name.localeCompare(b.name);
+
+      return dir === 'asc' ? c : -c;
+    });
+
+    return rows;
+  }
+
+  function setSort(key){
+    if (sortKey === key) sortDir = (sortDir === 'asc') ? 'desc' : 'asc';
+    else { sortKey = key; sortDir = 'asc'; }
+    render();
+  }
+
+  function updateSortIndicators(){
+    const inds = document.querySelectorAll('[data-ind]');
+    inds.forEach(el => {
+      const k = el.getAttribute('data-ind');
+      if (!sortKey){
+        el.textContent = (k === 'state' || k === 'name') ? '·' : '';
+        return;
+      }
+      if (k !== sortKey) { el.textContent = ''; return; }
+      el.textContent = (sortDir === 'asc') ? '▲' : '▼';
+    });
+  }
+
+  function filteredRows(){
+    const st = els.stateFilter.value;
+    const q = els.textFilter.value.trim().toLowerCase();
+
+    const filterOn = showWarningParks || showDangerParks;
+
+    const rows = allRows
+      .filter(r => (st === 'ALL' ? true : r.state === st))
+      .filter(r => (q ? r.name.toLowerCase().includes(q) : true))
+      .filter(r => {
+        if (!filterOn) return true;
+        if (showDangerParks && !showWarningParks) return r.severity === 'danger';
+        // warning (includes danger)
+        return r.severity === 'warning' || r.severity === 'danger';
+      });
+
+    return sortRows(rows);
+  }
+
+  function renderStats(rows){
+    const total = rows.length;
+    const danger = rows.filter(r => r.severity === 'danger').length;
+    const warning = rows.filter(r => r.severity === 'warning').length;
+    const ok = rows.filter(r => r.loaded && (r.severity === 'ok')).length;
+    const missing = rows.filter(r => r.loaded && r.severity === 'none').length;
+
+    els.stats.innerHTML = [
+      `<span class="chip"><b>${total}</b> parks</span>`,
+      `<span class="chip"><b>${ok}</b> OK</span>`,
+      `<span class="chip"><b>${missing}</b> no wind data</span>`,
+      `<span class="chip"><b style="color:var(--warning)">${warning}</b> warning &gt; ${WARNING_KMH}</span>`,
+      `<span class="chip"><b style="color:var(--danger)">${danger}</b> danger &gt; ${DANGER_KMH}</span>`,
+      `<label class="toggle warn ${showWarningParks ? 'active' : ''}" style="margin-left:4px">
+         <input id="showWarning" type="checkbox" ${showWarningParks ? 'checked' : ''} />
+         <span class="dot"></span>
+         warning
+       </label>`,
+      `<label class="toggle danger ${showDangerParks ? 'active' : ''}">
+         <input id="showDanger" type="checkbox" ${showDangerParks ? 'checked' : ''} />
+         <span class="dot"></span>
+         danger
+       </label>`
+    ].join('');
+  }
+
+  function badgeFor(sev){
+    if (sev === 'danger') return `<span class="badge danger">danger &gt; ${DANGER_KMH}</span>`;
+    if (sev === 'warning') return `<span class="badge warning">warning &gt; ${WARNING_KMH}</span>`;
+    return '';
+  }
+
+  function renderTable(rows){
+    els.tbody.innerHTML = rows.map(r => {
+      const badge = badgeFor(r.severity);
+      const stationText = r.stationName ? `${escapeHtml(r.stationName)} (${escapeHtml(r.stationId || '—')})` : '—';
+      const updatedText = r.issueTime ? timeAgo(r.issueTime) : '—';
+
+      const stationCol = r.error
+        ? `<span class="muted">${escapeHtml(r.error)}</span>`
+        : `<span class="small">${stationText}</span>`;
+
+      const updatedCol = r.error
+        ? `<span class="muted">—</span>`
+        : `<span class="small">${escapeHtml(updatedText)}</span>`;
+
+      return `
+        <tr>
+          <td>
+            <div class="row-top">
+              <div><b>${escapeHtml(r.name)}</b></div>
+              ${badge}
+            </div>
+          </td>
+          <td class="small muted">${escapeHtml(r.state)}</td>
+          <td class="right ${cellClassFor(r.windKmh)}">${formatKmh(r.windKmh)}</td>
+          <td class="right ${cellClassFor(r.gustKmh)}">${formatKmh(r.gustKmh)}</td>
+          <td>${stationCol}</td>
+          <td class="right">${updatedCol}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function render(){
+    const rows = filteredRows();
+    renderStats(rows);
+    renderTable(rows);
+    updateSortIndicators();
+  }
+
+  function timeAgo(ts){
+    const t = new Date(ts).getTime();
+    if (!Number.isFinite(t)) return '—';
+    const now = Date.now();
+    let s = Math.max(0, Math.floor((now - t) / 1000));
+
+    if (s < 10) return 'just now';
+    if (s < 60) return `${s}s ago`;
+
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m ago`;
+
+    const h = Math.floor(m / 60);
+    if (h < 48) return `${h}h ago`;
+
+    const d = Math.floor(h / 24);
+    if (d < 14) return `${d}d ago`;
+
+    const w = Math.floor(d / 7);
+    if (w < 8) return `${w}w ago`;
+
+    const mo = Math.floor(d / 30);
+    if (mo < 24) return `${mo}mo ago`;
+
+    const y = Math.floor(d / 365);
+    return `${y}y ago`;
+  }
+
+  function isProbablyHtml(text){
+    const t = String(text || '').trimStart();
+    if (!t) return false;
+    if (t.startsWith('<')) return true;
+    if (/<!doctype\s+html/i.test(t)) return true;
+    if (/<html[\s>]/i.test(t)) return true;
+    return false;
+  }
+
+  async function fetchJson(url){
+    const proxied = `${PROXY_BASE.replace(/\/$/, '')}/fetch?url=${encodeURIComponent(url)}`;
+
+    const res = await fetch(proxied, {
+      method: 'GET',
+      headers: { 'accept': 'application/json' },
+      cache: 'no-store',
+    });
+
+    const bodyText = await res.text();
+
+    if (isProbablyHtml(bodyText)) {
+      const snippet = bodyText.replace(/\s+/g, ' ').slice(0, 180);
+      throw new Error(`Upstream returned HTML (likely blocked). ${res.status} ${res.statusText}. Snippet: ${snippet}`);
+    }
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${bodyText.slice(0, 220)}`);
+    }
+
+    try {
+      return JSON.parse(bodyText);
+    } catch {
+      throw new Error(`Non-JSON response (${bodyText.slice(0, 120)})`);
+    }
+  }
+
+  async function bomSearchLocation(searchTerm, state){
+    const key = `${searchTerm}|${state}`;
+    if (cache.locations.has(key)) return cache.locations.get(key);
+
+    const url = `${BOM_BASE}/locations?search=${encodeURIComponent(searchTerm)}`;
+    const json = await fetchJson(url);
+
+    if (!json || !Array.isArray(json.data)) {
+      throw new Error('BOM locations payload missing data[]');
+    }
+
+    const candidates = (json.data || []).filter(x => x?.state === state);
+    const pick = candidates[0] || (json.data || [])[0] || null;
+
+    if (pick) cache.locations.set(key, pick);
+    return pick;
+  }
+
+  async function bomObservations(geohash){
+    const gh6 = String(geohash || '').slice(0, 6);
+    const url = `${BOM_BASE}/locations/${encodeURIComponent(gh6)}/observations`;
+    const json = await fetchJson(url);
+
+    if (json?.errors?.length) {
+      const e = json.errors[0];
+      throw new Error(`${e.title || 'BOM error'}: ${e.detail || e.code || 'unknown'}`);
+    }
+
+    return json;
+  }
+
+  async function loadData(){
+    const st = els.stateFilter.value;
+    const parks = (st === 'ALL') ? PARKS : PARKS.filter(p => p.state === st);
+
+    setStatus(`Loading ${parks.length} parks…`);
+
+    const CONCURRENCY = 6;
+    const queue = parks.map(p => ({...p}));
+    const results = [];
+
+    async function worker(){
+      while(queue.length){
+        const p = queue.shift();
+        const row = {
+          ...p,
+          loaded: false,
+          windKmh: null,
+          gustKmh: null,
+          stationName: null,
+          stationId: null,
+          issueTime: null,
+          severity: 'none',
+          error: null,
+        };
+
+        try{
+          const loc = await bomSearchLocation(p.searchTerm, p.state);
+          if (!loc?.geohash) throw new Error('No BOM match');
+
+          const obs = await bomObservations(loc.geohash);
+          const d = obs?.data || {};
+
+          row.windKmh = d?.wind?.speed_kilometre ?? null;
+          row.gustKmh = d?.gust?.speed_kilometre ?? null;
+          row.stationName = d?.station?.name ?? null;
+          row.stationId = d?.station?.bom_id ?? null;
+          row.issueTime = obs?.metadata?.issue_time ?? obs?.metadata?.response_timestamp ?? null;
+          row.severity = rowLevel(row);
+          row.loaded = true;
+        } catch(e){
+          row.loaded = true;
+          row.error = (e && e.message) ? e.message : 'Failed to load';
+          row.severity = 'none';
+        }
+
+        results.push(row);
+        allRows = results;
+        render();
+
+        // Pace requests (BOM edge protection can block bursts)
+        await new Promise(r => setTimeout(r, 50));
+      }
+    }
+
+    await Promise.all(Array.from({length: Math.min(CONCURRENCY, queue.length)}, worker));
+
+    allRows = results;
+    render();
+
+    const hadAnySuccess = results.some(r => r.windKmh != null || r.gustKmh != null);
+    if (!hadAnySuccess){
+      setStatus('No data loaded. If this persists, BOM may be temporarily blocking requests. Try again in 1–2 minutes.');
+    } else {
+      // Success: clear status (we only show status when it adds value)
+      setStatus('');
+    }
+  }
+
+  function debounce(fn, ms){
+    let t;
+    return (...args) => {
+      clearTimeout(t);
+      t = setTimeout(() => fn(...args), ms);
+    };
+  }
+
+  // --- Self-tests (lightweight) ---
+  function assert(name, condition){
+    if (!condition) throw new Error(`Self-test failed: ${name}`);
+  }
+
+  function runSelfTests(){
+    // Preserve any user state (self-tests should be side-effect free)
+    const prevWarn = showWarningParks;
+    const prevDanger = showDangerParks;
+    const prevState = els.stateFilter.value;
+    const prevText = els.textFilter.value;
+    const prevRows = allRows;
+    const prevSortKey = sortKey;
+    const prevSortDir = sortDir;
+
+    try {
+      assert('threshold order', DANGER_KMH > WARNING_KMH);
+      assert('level none', levelFor(null) === 'none');
+      assert('level ok boundary', levelFor(WARNING_KMH) === 'ok');
+      assert('level warning', levelFor(WARNING_KMH + 0.1) === 'warning');
+      assert('level danger', levelFor(DANGER_KMH + 0.1) === 'danger');
+
+      // timeAgo sanity
+      assert('timeAgo just now', timeAgo(new Date().toISOString()) === 'just now');
+
+      allRows = [
+        {state:'SA', name:'A', loaded:true, severity:'danger', windKmh:55, gustKmh:60, stationName:'X'},
+        {state:'SA', name:'B', loaded:true, severity:'warning', windKmh:45, gustKmh:48, stationName:'Y'},
+        {state:'SA', name:'C', loaded:true, severity:'ok', windKmh:10, gustKmh:null, stationName:null},
+      ];
+      els.stateFilter.value = 'SA';
+      els.textFilter.value = '';
+
+      showWarningParks = false; showDangerParks = false;
+      assert('filter off shows all', filteredRows().length === 3);
+
+      showWarningParks = true; showDangerParks = false;
+      assert('warning includes danger', filteredRows().length === 2);
+
+      showWarningParks = false; showDangerParks = true;
+      assert('danger only', filteredRows().length === 1);
+
+      showWarningParks = true; showDangerParks = true;
+      assert('both toggles same as warning', filteredRows().length === 2);
+
+      showWarningParks = false; showDangerParks = false;
+      sortKey = 'windKmh'; sortDir = 'desc';
+      assert('sort numeric desc', filteredRows().map(r => r.name).join('') === 'ABC');
+
+    } finally {
+      showWarningParks = prevWarn;
+      showDangerParks = prevDanger;
+      els.stateFilter.value = prevState;
+      els.textFilter.value = prevText;
+      allRows = prevRows;
+      sortKey = prevSortKey;
+      sortDir = prevSortDir;
+    }
+  }
+
+  // Events
+  function openInfo(){ els.infoModal.classList.add('open'); }
+  function closeInfo(){ els.infoModal.classList.remove('open'); }
+
+  els.infoBtn.addEventListener('click', openInfo);
+  els.infoClose.addEventListener('click', closeInfo);
+  els.infoModal.addEventListener('click', (e) => {
+    if (e.target && e.target.dataset && e.target.dataset.close) closeInfo();
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && els.infoModal.classList.contains('open')) closeInfo();
+  });
+
+  // Sortable headers (event delegation). Updated column is excluded.
+  document.querySelector('thead').addEventListener('click', (e) => {
+    const th = e.target.closest('th[data-key]');
+    if (!th) return;
+    setSort(th.dataset.key);
+  });
+
+  // Toggles live inside the stats row (which re-renders). Use event delegation.
+  els.stats.addEventListener('change', (e) => {
+    const t = e.target;
+    if (!t) return;
+
+    if (t.id === 'showWarning') {
+      showWarningParks = !!t.checked;
+      render();
+      return;
+    }
+
+    if (t.id === 'showDanger') {
+      showDangerParks = !!t.checked;
+      render();
+      return;
+    }
+  });
+
+  els.stateFilter.addEventListener('change', () => {
+    cache.locations.clear();
+    allRows = [];
+    render();
+    loadData();
+  });
+
+  els.textFilter.addEventListener('input', debounce(render, 120));
+
+  els.refreshBtn.addEventListener('click', () => {
+    cache.locations.clear();
+    allRows = [];
+    render();
+    loadData();
+  });
+
+  // Initial
+  try {
+    const wEl = document.getElementById('warningValue');
+    const dEl = document.getElementById('dangerValue');
+    if (wEl) wEl.textContent = String(WARNING_KMH);
+    if (dEl) dEl.textContent = String(DANGER_KMH);
+
+    runSelfTests();
+    loadData();
+  } catch (e) {
+    setStatus((e && e.message) ? e.message : 'Startup error');
+  }
+</script>
+</body>
+</html>
