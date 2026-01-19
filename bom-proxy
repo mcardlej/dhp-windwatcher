@@ -1,0 +1,136 @@
+export default {
+  async fetch(request, env, ctx) {
+    const reqUrl = new URL(request.url);
+
+    // CORS preflight
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: corsHeaders() });
+    }
+
+    if (reqUrl.pathname !== "/fetch") {
+      return new Response("Not found", { status: 404, headers: corsHeaders() });
+    }
+
+    const targetRaw = reqUrl.searchParams.get("url");
+    if (!targetRaw) {
+      return new Response("Missing url", { status: 400, headers: corsHeaders() });
+    }
+
+    let targetUrl;
+    try {
+      targetUrl = new URL(targetRaw);
+    } catch {
+      return new Response("Bad url param", { status: 400, headers: corsHeaders() });
+    }
+
+    // Enforce HTTPS only
+    if (targetUrl.protocol !== "https:") {
+      targetUrl.protocol = "https:";
+    }
+
+    // Strict allow-list (host only)
+    const allowedHosts = new Set(["api.weather.bom.gov.au"]);
+    if (!allowedHosts.has(targetUrl.hostname)) {
+      return new Response(`Forbidden host: ${targetUrl.hostname}`, {
+        status: 403,
+        headers: corsHeaders(),
+      });
+    }
+
+    // Only allow BoM API paths we actually need
+    // /v1/locations?... and /v1/locations/<geohash>/observations
+    const p = targetUrl.pathname || "";
+    const okPath =
+      p === "/v1/locations" ||
+      /^\/v1\/locations\/[a-z0-9]+\/observations$/i.test(p);
+
+    if (!okPath) {
+      return new Response("Forbidden path", { status: 403, headers: corsHeaders() });
+    }
+
+    // Build a cache key (edge cache)
+    const cacheKey = new Request(targetUrl.toString(), {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+
+    const cache = caches.default;
+
+    // Try cache first
+    let cached = await cache.match(cacheKey);
+    if (cached) {
+      return withCors(cached);
+    }
+
+    // Fetch from BoM (set sane headers)
+    const bomRes = await fetch(targetUrl.toString(), {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "DiscoveryParksWindDashboard/1.0 (proxy; Cloudflare Worker)",
+      },
+      // Cloudflare respects this for edge caching too:
+      cf: {
+        cacheTtl: ttlSecondsForPath(targetUrl.pathname),
+        cacheEverything: true,
+      },
+    });
+
+    const bodyText = await bomRes.text();
+
+    // BoM sometimes returns HTML Access Denied. If so, do NOT cache it.
+    const looksLikeHtml = /^\s*</.test(bodyText) && /<html|access denied/i.test(bodyText);
+    if (looksLikeHtml) {
+      return new Response(bodyText, {
+        status: 503,
+        headers: {
+          ...corsHeaders(),
+          "content-type": "text/html; charset=utf-8",
+          "cache-control": "no-store",
+        },
+      });
+    }
+
+    // Normal JSON response
+    const out = new Response(bodyText, {
+      status: bomRes.status,
+      headers: {
+        ...corsHeaders(),
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": `public, max-age=${ttlSecondsForPath(targetUrl.pathname)}`,
+      },
+    });
+
+    // Cache successful responses only
+    if (bomRes.ok) {
+      ctx.waitUntil(cache.put(cacheKey, out.clone()));
+    }
+
+    return out;
+  },
+};
+
+function ttlSecondsForPath(pathname) {
+  // Cache locations longer (stable-ish), observations shorter (changes frequently)
+  if (pathname === "/v1/locations") return 60 * 60 * 12; // 12 hours
+  if (/\/observations$/i.test(pathname)) return 60 * 5;  // 5 minutes
+  return 60;
+}
+
+function corsHeaders() {
+  return {
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "GET, OPTIONS",
+    "access-control-allow-headers": "Content-Type, Accept",
+  };
+}
+
+function withCors(resp) {
+  const h = new Headers(resp.headers);
+  h.set("access-control-allow-origin", "*");
+  h.set("access-control-allow-methods", "GET, OPTIONS");
+  h.set("access-control-allow-headers", "Content-Type, Accept");
+  // ensure content-type is sane for Canvas
+  if (!h.get("content-type")) h.set("content-type", "application/json; charset=utf-8");
+  return new Response(resp.body, { status: resp.status, headers: h });
+}
