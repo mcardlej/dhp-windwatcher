@@ -336,6 +336,81 @@
   let showWarningParks = false;
   let showDangerParks = false;
 
+  // --- Persist UI prefs (filters + sort) ---
+  // Uses localStorage when available, falls back to cookies.
+  const PREF_KEY = 'dp_wind_watcher_prefs_v1';
+
+  function cookieGet(name){
+    const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.$?*|{}()\[\]\\\/\+^]/g,'\\$&') + '=([^;]*)'));
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+
+  function cookieSet(name, value, days=365){
+    const expires = new Date(Date.now() + days*864e5).toUTCString();
+    document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+  }
+
+  function safeJsonParse(s){
+    try { return JSON.parse(s); } catch { return null; }
+  }
+
+  function readPrefs(){
+    try {
+      const raw = localStorage.getItem(PREF_KEY);
+      if (raw) return safeJsonParse(raw) || null;
+    } catch {}
+
+    const c = cookieGet(PREF_KEY);
+    return c ? (safeJsonParse(c) || null) : null;
+  }
+
+  function writePrefs(prefs){
+    const raw = JSON.stringify(prefs);
+    try { localStorage.setItem(PREF_KEY, raw); return; } catch {}
+    cookieSet(PREF_KEY, raw);
+  }
+
+  function currentPrefs(){
+    return {
+      state: els.stateFilter.value,
+      text: els.textFilter.value,
+      showWarning: !!showWarningParks,
+      showDanger: !!showDangerParks,
+      sortKey: sortKey,
+      sortDir: sortDir,
+    };
+  }
+
+  function savePrefs(){
+    writePrefs(currentPrefs());
+  }
+
+  const savePrefsDebounced = debounce(savePrefs, 250);
+
+  function applyPrefs(){
+    const p = readPrefs();
+    if (!p || typeof p !== 'object') return;
+
+    // State
+    if (typeof p.state === 'string') {
+      const opt = Array.from(els.stateFilter.options).some(o => o.value === p.state);
+      if (opt) els.stateFilter.value = p.state;
+    }
+
+    // Text
+    if (typeof p.text === 'string') {
+      els.textFilter.value = p.text;
+    }
+
+    // Toggles
+    if (typeof p.showWarning === 'boolean') showWarningParks = p.showWarning;
+    if (typeof p.showDanger === 'boolean') showDangerParks = p.showDanger;
+
+    // Sort
+    if (typeof p.sortKey === 'string' || p.sortKey === null) sortKey = p.sortKey;
+    if (p.sortDir === 'asc' || p.sortDir === 'desc') sortDir = p.sortDir;
+  }
+
   function setStatus(msg){
     els.status.textContent = msg || '';
   }
@@ -428,6 +503,7 @@
   function setSort(key){
     if (sortKey === key) sortDir = (sortDir === 'asc') ? 'desc' : 'asc';
     else { sortKey = key; sortDir = 'asc'; }
+    savePrefs();
     render();
   }
 
@@ -792,27 +868,35 @@
 
     if (t.id === 'showWarning') {
       showWarningParks = !!t.checked;
+      savePrefs();
       render();
       return;
     }
 
     if (t.id === 'showDanger') {
       showDangerParks = !!t.checked;
+      savePrefs();
       render();
       return;
     }
   });
 
   els.stateFilter.addEventListener('change', () => {
+    savePrefs();
     cache.locations.clear();
     allRows = [];
     render();
     loadData();
   });
 
-  els.textFilter.addEventListener('input', debounce(render, 120));
+  els.textFilter.addEventListener('input', () => {
+    savePrefsDebounced();
+    debounce(render, 120)();
+  });
 
   els.refreshBtn.addEventListener('click', () => {
+    // Refresh keeps filters/sort as-is.
+    savePrefs();
     cache.locations.clear();
     allRows = [];
     render();
@@ -826,7 +910,9 @@
     if (wEl) wEl.textContent = String(WARNING_KMH);
     if (dEl) dEl.textContent = String(DANGER_KMH);
 
+    applyPrefs();
     runSelfTests();
+    render();
     loadData();
   } catch (e) {
     setStatus((e && e.message) ? e.message : 'Startup error');
