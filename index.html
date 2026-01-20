@@ -18,8 +18,21 @@
       --chip:#f0f3f9;
     }
 
+    html[data-theme="dark"]{
+      --bg:#0b1220;
+      --card:#111827;
+      --muted:#9aa4b2;
+      --text:#f3f4f6;
+      --line:#243047;
+      --danger:#f97066;
+      --warning:#fbbf24;
+      --ok:#2dd4bf;
+      --chip:#0f172a;
+      color-scheme:dark;
+    }
+
     *{box-sizing:border-box}
-    html{height:100%; background:var(--bg);}
+    html{height:100%; background:var(--bg); color-scheme:light;}
     body{min-height:100vh; margin:0; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; background:transparent; color:var(--text);}
 
     /* Bulletproof full-viewport background (Canvas/iframe safe) */
@@ -99,6 +112,16 @@
     .icon-btn{display:inline-flex; align-items:center; justify-content:center; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px; font-size:14px; font-weight:600; cursor:pointer; color:var(--text)}
     .icon-btn:hover{border-color:#8aa4d6;}
 
+    .theme-toggle{position:relative; display:inline-flex; align-items:center; gap:8px; padding:8px 10px; background:var(--card); border:1px solid var(--line); border-radius:999px; cursor:pointer; font-size:12px; color:var(--muted); user-select:none}
+    .theme-toggle input{position:absolute; opacity:0; width:1px; height:1px; margin:0; padding:0; border:0; min-width:0;}
+    .theme-toggle .switch{position:relative; width:34px; height:18px; background:var(--line); border-radius:999px; flex:0 0 auto; transition:background .2s;}
+    .theme-toggle .switch::after{content:''; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:999px; background:var(--card); box-shadow:0 1px 2px rgba(0,0,0,.2); transition:transform .2s;}
+    .theme-toggle input:checked + .switch{background:var(--ok);}
+    .theme-toggle input:checked + .switch::after{transform:translateX(16px);}
+    .theme-toggle input:focus-visible + .switch{box-shadow:0 0 0 3px rgba(138,164,214,.35);}
+    .theme-toggle input:checked ~ .theme-label{color:var(--text);}
+    .theme-label{white-space:nowrap;}
+
     .modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; padding:18px; z-index:9999;}
     .modal.open{display:flex;}
     .modal-backdrop{position:absolute; inset:0; background:rgba(17,24,39,.38);}
@@ -162,6 +185,11 @@
             <line x1="12" y1="8" x2="12.01" y2="8"></line>
           </svg>
         </button>
+        <label class="theme-toggle" title="Toggle dark mode">
+          <input id="darkModeToggle" type="checkbox" aria-label="Toggle dark mode" />
+          <span class="switch" aria-hidden="true"></span>
+          <span class="theme-label">Dark mode</span>
+        </label>
       </div>
     </div>
 
@@ -348,6 +376,7 @@
     infoBtn: document.getElementById('infoBtn'),
     infoModal: document.getElementById('infoModal'),
     infoClose: document.getElementById('infoClose'),
+    darkModeToggle: document.getElementById('darkModeToggle'),
   };
 
   const cache = { locations: new Map() };
@@ -360,6 +389,8 @@
   // Filter toggles (live in the stats row)
   let showWarningParks = false;
   let showDangerParks = false;
+
+  let darkModeEnabled = false;
 
   // --- Persist UI prefs (filters + sort) ---
   // Uses localStorage when available, falls back to cookies.
@@ -401,6 +432,7 @@
       text: els.textFilter.value,
       showWarning: !!showWarningParks,
       showDanger: !!showDangerParks,
+      darkMode: !!darkModeEnabled,
       sortKey: sortKey,
       sortDir: sortDir,
     };
@@ -430,10 +462,17 @@
     // Toggles
     if (typeof p.showWarning === 'boolean') showWarningParks = p.showWarning;
     if (typeof p.showDanger === 'boolean') showDangerParks = p.showDanger;
+    if (typeof p.darkMode === 'boolean') darkModeEnabled = p.darkMode;
 
     // Sort
     if (typeof p.sortKey === 'string' || p.sortKey === null) sortKey = p.sortKey;
     if (p.sortDir === 'asc' || p.sortDir === 'desc') sortDir = p.sortDir;
+  }
+
+  function applyTheme(){
+    if (darkModeEnabled) document.documentElement.setAttribute('data-theme', 'dark');
+    else document.documentElement.removeAttribute('data-theme');
+    if (els.darkModeToggle) els.darkModeToggle.checked = !!darkModeEnabled;
   }
 
   function setStatus(msg){
@@ -1055,6 +1094,14 @@ async function bomForecastHourly(geohash){
     if (e.key === 'Escape' && els.infoModal.classList.contains('open')) closeInfo();
   });
 
+  if (els.darkModeToggle) {
+    els.darkModeToggle.addEventListener('change', (e) => {
+      darkModeEnabled = !!e.target.checked;
+      applyTheme();
+      savePrefs();
+    });
+  }
+
   // Sortable headers (event delegation). Updated column is excluded.
   document.querySelector('thead').addEventListener('click', (e) => {
     const th = e.target.closest('th[data-key]');
@@ -1112,6 +1159,7 @@ async function bomForecastHourly(geohash){
     if (dEl) dEl.textContent = String(DANGER_KMH);
 
     applyPrefs();
+    applyTheme();
     runSelfTests();
     render();
     loadData();
