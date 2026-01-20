@@ -1,136 +1,135 @@
 export default {
-  async fetch(request, env, ctx) {
-    const reqUrl = new URL(request.url);
+  async fetch(request) {
+    const u = new URL(request.url);
 
     // CORS preflight
     if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders() });
+      return new Response(null, { status: 204, headers: cors() });
     }
 
-    if (reqUrl.pathname !== "/fetch") {
-      return new Response("Not found", { status: 404, headers: corsHeaders() });
+    if (u.pathname !== "/fetch") {
+      return new Response("Not found", { status: 404, headers: cors() });
     }
 
-    const targetRaw = reqUrl.searchParams.get("url");
-    if (!targetRaw) {
-      return new Response("Missing url", { status: 400, headers: corsHeaders() });
+    const targetRaw = u.searchParams.get("url");
+    if (!targetRaw) return new Response("Missing url", { status: 400, headers: cors() });
+
+    let target;
+    try { target = new URL(targetRaw); }
+    catch { return new Response("Bad url", { status: 400, headers: cors() }); }
+
+    // Lock host
+    if (target.hostname !== "api.weather.bom.gov.au") {
+      return new Response("Forbidden host", { status: 403, headers: cors() });
     }
 
-    let targetUrl;
-    try {
-      targetUrl = new URL(targetRaw);
-    } catch {
-      return new Response("Bad url param", { status: 400, headers: corsHeaders() });
+    const path = target.pathname || "";
+    const isLocations = path === "/v1/locations";
+    const isObs = /^\/v1\/locations\/[a-z0-9]+\/observations$/i.test(path);
+    const isF3 = /^\/v1\/locations\/[a-z0-9]+\/forecasts\/3-hourly$/i.test(path);
+    const isHourly = /^\/v1\/locations\/[a-z0-9]+\/forecasts\/hourly$/i.test(path);
+
+    if (!isLocations && !isObs && !isF3 && !isHourly) {
+      return new Response("Forbidden path", { status: 403, headers: cors() });
     }
 
-    // Enforce HTTPS only
-    if (targetUrl.protocol !== "https:") {
-      targetUrl.protocol = "https:";
+    // /v1/locations doesn’t have the same geohash weirdness
+    if (isLocations) return await upstream(target);
+
+    // For obs/forecasts: try variants (as-is, then shorten)
+    const variants = buildVariants(target);
+    let lastRes = null;
+
+    for (const v of variants) {
+      const res = await upstream(v);
+      lastRes = res;
+
+      if (res.ok) return res;
+
+      // If it's not a typical “wrong geohash” (404/400), bail early
+      if (![400, 404].includes(res.status)) return res;
     }
 
-    // Strict allow-list (host only)
-    const allowedHosts = new Set(["api.weather.bom.gov.au"]);
-    if (!allowedHosts.has(targetUrl.hostname)) {
-      return new Response(`Forbidden host: ${targetUrl.hostname}`, {
-        status: 403,
-        headers: corsHeaders(),
-      });
-    }
-
-    // Only allow BoM API paths we actually need
-    // /v1/locations?... and /v1/locations/<geohash>/observations
-    const p = targetUrl.pathname || "";
-    const okPath =
-      p === "/v1/locations" ||
-      /^\/v1\/locations\/[a-z0-9]+\/observations$/i.test(p);
-
-    if (!okPath) {
-      return new Response("Forbidden path", { status: 403, headers: corsHeaders() });
-    }
-
-    // Build a cache key (edge cache)
-    const cacheKey = new Request(targetUrl.toString(), {
-      method: "GET",
-      headers: { Accept: "application/json" },
-    });
-
-    const cache = caches.default;
-
-    // Try cache first
-    let cached = await cache.match(cacheKey);
-    if (cached) {
-      return withCors(cached);
-    }
-
-    // Fetch from BoM (set sane headers)
-    const bomRes = await fetch(targetUrl.toString(), {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "DiscoveryParksWindDashboard/1.0 (proxy; Cloudflare Worker)",
-      },
-      // Cloudflare respects this for edge caching too:
-      cf: {
-        cacheTtl: ttlSecondsForPath(targetUrl.pathname),
-        cacheEverything: true,
-      },
-    });
-
-    const bodyText = await bomRes.text();
-
-    // BoM sometimes returns HTML Access Denied. If so, do NOT cache it.
-    const looksLikeHtml = /^\s*</.test(bodyText) && /<html|access denied/i.test(bodyText);
-    if (looksLikeHtml) {
-      return new Response(bodyText, {
-        status: 503,
-        headers: {
-          ...corsHeaders(),
-          "content-type": "text/html; charset=utf-8",
-          "cache-control": "no-store",
-        },
-      });
-    }
-
-    // Normal JSON response
-    const out = new Response(bodyText, {
-      status: bomRes.status,
-      headers: {
-        ...corsHeaders(),
-        "content-type": "application/json; charset=utf-8",
-        "cache-control": `public, max-age=${ttlSecondsForPath(targetUrl.pathname)}`,
-      },
-    });
-
-    // Cache successful responses only
-    if (bomRes.ok) {
-      ctx.waitUntil(cache.put(cacheKey, out.clone()));
-    }
-
-    return out;
+    return lastRes || new Response("Upstream error", { status: 502, headers: cors() });
   },
 };
 
-function ttlSecondsForPath(pathname) {
-  // Cache locations longer (stable-ish), observations shorter (changes frequently)
-  if (pathname === "/v1/locations") return 60 * 60 * 12; // 12 hours
-  if (/\/observations$/i.test(pathname)) return 60 * 5;  // 5 minutes
-  return 60;
+function buildVariants(url) {
+  const geohash = extractGeohash(url);
+  const out = [];
+
+  // as-is
+  out.push(withGeohash(url, geohash));
+
+  // common BOM behaviour: 6-char parent geohash often works better
+  const gh6 = geohash.slice(0, 6);
+  if (gh6 && gh6 !== geohash) out.push(withGeohash(url, gh6));
+
+  // then progressively shorter down to 4 chars
+  for (let n = geohash.length - 1; n >= 4; n--) out.push(withGeohash(url, geohash.slice(0, n)));
+  for (let n = gh6.length - 1; n >= 4; n--) out.push(withGeohash(url, gh6.slice(0, n)));
+
+  // dedupe
+  const seen = new Set();
+  return out.filter(x => {
+    const k = x.toString();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 }
 
-function corsHeaders() {
+function extractGeohash(url) {
+  const parts = url.pathname.split("/").filter(Boolean);
+  return parts[2] || "";
+}
+
+function withGeohash(url, gh) {
+  const u = new URL(url.toString());
+  const parts = u.pathname.split("/").filter(Boolean);
+  parts[2] = gh;
+  u.pathname = "/" + parts.join("/");
+  return u;
+}
+
+async function upstream(targetUrl) {
+  const path = targetUrl.pathname || "";
+  const ttl =
+    path === "/v1/locations" ? 60 * 60 * 12 :
+    /\/observations$/i.test(path) ? 60 * 5 :
+    /\/forecasts\/hourly$/i.test(path) ? 60 * 10 :
+    /\/forecasts\/3-hourly$/i.test(path) ? 60 * 30 :
+    60;
+
+  const r = await fetch(targetUrl.toString(), {
+    method: "GET",
+    headers: { "Accept": "application/json" },
+    cf: {
+      cacheEverything: true,
+      cacheTtlByStatus: {
+        "200-299": ttl,
+        "404": 0,
+        "400-499": 0,
+        "500-599": 0,
+      },
+    },
+  });
+
+  const body = await r.text();
+  return new Response(body, {
+    status: r.status,
+    headers: {
+      ...cors(),
+      "content-type": r.headers.get("content-type") || "application/json; charset=utf-8",
+      "cache-control": r.ok ? `public, max-age=${ttl}` : "no-store",
+    },
+  });
+}
+
+function cors() {
   return {
     "access-control-allow-origin": "*",
     "access-control-allow-methods": "GET, OPTIONS",
     "access-control-allow-headers": "Content-Type, Accept",
   };
-}
-
-function withCors(resp) {
-  const h = new Headers(resp.headers);
-  h.set("access-control-allow-origin", "*");
-  h.set("access-control-allow-methods", "GET, OPTIONS");
-  h.set("access-control-allow-headers", "Content-Type, Accept");
-  // ensure content-type is sane for Canvas
-  if (!h.get("content-type")) h.set("content-type", "application/json; charset=utf-8");
-  return new Response(resp.body, { status: resp.status, headers: h });
 }
