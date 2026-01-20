@@ -83,8 +83,11 @@
     th.sortable:hover{background:rgba(138,164,214,.15)}
     .sort-ind{display:inline-block; margin-left:6px; font-size:11px; color:var(--muted)}
 
-    .row-top{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
-    .badge{display:inline-flex; gap:6px; align-items:center; font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted)}
+    /* Keep park name + badge on one line (avoid row height blowouts) */
+    .row-top{display:flex; gap:8px; align-items:center; flex-wrap:nowrap; min-width:0;}
+    .park-name{min-width:0; flex:1 1 auto;}
+    .park-name b{display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .badge{display:inline-flex; gap:6px; align-items:center; font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); white-space:nowrap; flex:0 0 auto}
     .badge.warning{border-color:rgba(217,119,6,.55); color:var(--warning)}
     .badge.danger{border-color:rgba(217,45,32,.55); color:var(--danger)}
 
@@ -107,7 +110,14 @@
     .modal-body p{margin:0 0 10px; color:var(--muted); font-size:13px; line-height:1.45}
     .modal-body ul{margin:8px 0 0 18px; padding:0; color:var(--muted); font-size:13px; line-height:1.45}
     .modal-body li{margin:6px 0}
-  </style>
+  
+/* Keep park name + badge on one line */
+.row-top{display:block;}
+.park-name{display:inline-flex; align-items:center; gap:8px; min-width:0; white-space:nowrap;}
+.park-name b{overflow:hidden; text-overflow:ellipsis;}
+.badge{flex:0 0 auto;}
+
+</style>
 </head>
 <body>
   <header>
@@ -161,13 +171,13 @@
       <table>
         <thead>
           <tr>
-            <th class="sortable" data-key="name" style="width:22%">Park <span class="sort-ind" data-ind="name"></span></th>
+            <th class="sortable" data-key="name" style="width:26%">Park <span class="sort-ind" data-ind="name"></span></th>
             <th class="sortable" data-key="state" style="width:7%">State <span class="sort-ind" data-ind="state"></span></th>
             <th class="sortable right" data-key="windKmh" style="width:15%">Current <span class="sort-ind" data-ind="windKmh"></span></th>
             <th class="sortable right" data-key="f3WindKmh" style="width:15%">3h forecast <span class="sort-ind" data-ind="f3WindKmh"></span></th>
             <th class="sortable right" data-key="t9WindKmh" style="width:15%">9am tomorrow <span class="sort-ind" data-ind="t9WindKmh"></span></th>
-            <th class="sortable" data-key="stationName" style="width:16%">Station <span class="sort-ind" data-ind="stationName"></span></th>
-            <th style="width:10%">Updated</th>
+            <th style="width:18%">Station</th>
+            <th style="width:13%">Updated</th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
@@ -452,11 +462,28 @@
   }
 
   function rowLevel(row){
-    const wl = levelFor(row.windKmh);
-    const gl = levelFor(row.gustKmh);
-    if (wl === 'danger' || gl === 'danger') return 'danger';
-    if (wl === 'warning' || gl === 'warning') return 'warning';
-    if (wl === 'ok' || gl === 'ok') return 'ok';
+    // Overall severity is the worst level across all three wind columns (wind OR gust).
+    // If any column hits Danger, the park is Danger. Otherwise if any hits Warning, the park is Warning.
+    // Otherwise if any has a valid reading, it's OK. Else none.
+    const pairs = [
+      [row.windKmh, row.gustKmh],
+      [row.f3WindKmh, row.f3GustKmh],
+      [row.t9WindKmh, row.t9GustKmh],
+    ];
+
+    let sawOk = false;
+    let sawWarning = false;
+
+    for (const [w, g] of pairs){
+      const wl = levelFor(w);
+      const gl = levelFor(g);
+      if (wl === 'danger' || gl === 'danger') return 'danger';
+      if (wl === 'warning' || gl === 'warning') sawWarning = true;
+      if (wl === 'ok' || gl === 'ok') sawOk = true;
+    }
+
+    if (sawWarning) return 'warning';
+    if (sawOk) return 'ok';
     return 'none';
   }
 
@@ -606,20 +633,19 @@
   }
 
   function badgeFor(sev){
-    if (sev === 'danger') return `<span class="badge danger">danger &gt; ${DANGER_KMH}</span>`;
-    if (sev === 'warning') return `<span class="badge warning">warning &gt; ${WARNING_KMH}</span>`;
+    if (sev === 'danger') return `<span class="badge danger">Danger</span>`;
+    if (sev === 'warning') return `<span class="badge warning">Warning</span>`;
     return '';
   }
 
   function renderTable(rows){
     els.tbody.innerHTML = rows.map(r => {
       const badge = badgeFor(r.severity);
-      const stationText = r.stationName ? `${escapeHtml(r.stationName)} (${escapeHtml(r.stationId || '—')})` : '—';
       const updatedText = r.issueTime ? timeAgo(r.issueTime) : '—';
 
-      const stationCol = r.error
-        ? `<span class="muted">${escapeHtml(r.error)}</span>`
-        : `<span class="small">${stationText}</span>`;
+      const parkSubLine = r.error
+        ? `<div class="muted">${escapeHtml(r.error)}</div>`
+        : '';
 
       const updatedCol = r.error
         ? `<span class="muted">—</span>`
@@ -628,16 +654,14 @@
       return `
         <tr>
           <td>
-            <div class="row-top">
-              <div><b>${escapeHtml(r.name)}</b></div>
-              ${badge}
-            </div>
+            <div class="row-top"><div class="park-name"><b>${escapeHtml(r.name)}</b>${badge}</div></div>
+            ${parkSubLine}
           </td>
           <td class="small muted">${escapeHtml(r.state)}</td>
           <td class="right ${cellClassForPair(r.windKmh, r.gustKmh)}">${formatWindGust(r.windKmh, r.gustKmh)}</td>
           <td class="right ${cellClassForPair(r.f3WindKmh, r.f3GustKmh)}">${formatWindGust(r.f3WindKmh, r.f3GustKmh)}</td>
           <td class="right ${cellClassForPair(r.t9WindKmh, r.t9GustKmh)}">${formatWindGust(r.t9WindKmh, r.t9GustKmh)}</td>
-          <td>${stationCol}</td>
+          <td class="small muted nowrap">${r.error ? '—' : escapeHtml(r.stationName || '—')}</td>
           <td class="right">${updatedCol}</td>
         </tr>
       `;
