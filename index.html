@@ -387,6 +387,7 @@
   };
 
   const cache = { locations: new Map() };
+  const LOC_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12h, matches worker /locations cache
   let allRows = [];
 
   // Sorting (applies after filters). Updated column is intentionally not sortable.
@@ -450,6 +451,7 @@
   }
 
   const savePrefsDebounced = debounce(savePrefs, 250);
+  const renderDebounced = debounce(render, 120);
 
   function applyPrefs(){
     const p = readPrefs();
@@ -721,6 +723,20 @@
     updateSortIndicators();
   }
 
+  let renderScheduled = false;
+  const raf = (typeof requestAnimationFrame === 'function')
+    ? requestAnimationFrame
+    : (cb) => setTimeout(cb, 16);
+
+  function scheduleRender(){
+    if (renderScheduled) return;
+    renderScheduled = true;
+    raf(() => {
+      renderScheduled = false;
+      render();
+    });
+  }
+
   function timeAgo(ts){
     const t = new Date(ts).getTime();
     if (!Number.isFinite(t)) return '—';
@@ -787,20 +803,35 @@
 
   async function bomSearchLocation(searchTerm, state){
     const key = `${searchTerm}|${state}`;
-    if (cache.locations.has(key)) return cache.locations.get(key);
-
-    const url = `${BOM_BASE}/locations?search=${encodeURIComponent(searchTerm)}`;
-    const json = await fetchJson(url);
-
-    if (!json || !Array.isArray(json.data)) {
-      throw new Error('BOM locations payload missing data[]');
+    const now = Date.now();
+    const cached = cache.locations.get(key);
+    if (cached) {
+      if (cached.promise) return cached.promise;
+      if (cached.expiresAt > now) return cached.value;
+      cache.locations.delete(key);
     }
 
-    const candidates = (json.data || []).filter(x => x?.state === state);
-    const pick = candidates[0] || (json.data || [])[0] || null;
+    const url = `${BOM_BASE}/locations?search=${encodeURIComponent(searchTerm)}`;
+    const promise = (async () => {
+      const json = await fetchJson(url);
 
-    if (pick) cache.locations.set(key, pick);
-    return pick;
+      if (!json || !Array.isArray(json.data)) {
+        throw new Error('BOM locations payload missing data[]');
+      }
+
+      const candidates = (json.data || []).filter(x => x?.state === state);
+      const pick = candidates[0] || (json.data || [])[0] || null;
+
+      cache.locations.set(key, { value: pick, expiresAt: Date.now() + LOC_CACHE_TTL_MS });
+      return pick;
+    })();
+
+    cache.locations.set(key, { promise, expiresAt: now + LOC_CACHE_TTL_MS });
+    promise.catch(() => {
+      const curr = cache.locations.get(key);
+      if (curr && curr.promise === promise) cache.locations.delete(key);
+    });
+    return promise;
   }
 
   async function bomObservations(geohash){
@@ -843,12 +874,23 @@ async function bomForecastHourly(geohash){
     WA: 'Australia/Perth',
   };
 
+  const TZ_FORMATTERS = new Map();
+
+  function getTzFormatter(tz){
+    let fmt = TZ_FORMATTERS.get(tz);
+    if (!fmt) {
+      fmt = new Intl.DateTimeFormat('en-AU', {
+        timeZone: tz,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', hour12: false,
+      });
+      TZ_FORMATTERS.set(tz, fmt);
+    }
+    return fmt;
+  }
+
   function partsInTz(d, tz){
-    const fmt = new Intl.DateTimeFormat('en-AU', {
-      timeZone: tz,
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', hour12: false,
-    });
+    const fmt = getTzFormatter(tz);
     const parts = fmt.formatToParts(d);
     const get = (type) => parts.find(p => p.type === type)?.value;
     return {
@@ -868,6 +910,24 @@ async function bomForecastHourly(geohash){
     const CONCURRENCY = 6;
     const queue = parks.map(p => ({...p}));
     const results = [];
+    const weatherByGeohash = new Map();
+
+    function getWeatherForGeohash(geohash){
+      const gh = String(geohash || '');
+      if (weatherByGeohash.has(gh)) return weatherByGeohash.get(gh);
+      const promise = (async () => {
+        const [obs, hourly] = await Promise.all([
+          bomObservations(gh),
+          bomForecastHourly(gh).catch(() => null),
+        ]);
+        return { obs, hourly };
+      })();
+      weatherByGeohash.set(gh, promise);
+      promise.catch(() => {
+        if (weatherByGeohash.get(gh) === promise) weatherByGeohash.delete(gh);
+      });
+      return promise;
+    }
 
     async function worker(){
       while(queue.length){
@@ -893,11 +953,7 @@ async function bomForecastHourly(geohash){
           if (!loc?.geohash) throw new Error('No BOM match');
 
           // Load current observations + hourly forecasts (best available wind forecast from BOM API)
-          const tz = STATE_TZ[p.state] || 'Australia/Sydney';
-          const [obs, hourly] = await Promise.all([
-            bomObservations(loc.geohash),
-            bomForecastHourly(loc.geohash).catch(() => null),
-          ]);
+          const { obs, hourly } = await getWeatherForGeohash(loc.geohash);
 
           const d = obs?.data || {};
 
@@ -999,7 +1055,7 @@ async function bomForecastHourly(geohash){
 
         results.push(row);
         allRows = results;
-        render();
+        scheduleRender();
 
         // Pace requests (BOM edge protection can block bursts)
         await new Promise(r => setTimeout(r, 50));
@@ -1146,7 +1202,7 @@ async function bomForecastHourly(geohash){
 
   els.textFilter.addEventListener('input', () => {
     savePrefsDebounced();
-    debounce(render, 120)();
+    renderDebounced();
   });
 
   els.refreshBtn.addEventListener('click', () => {
