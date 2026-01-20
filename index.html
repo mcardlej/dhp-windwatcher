@@ -161,12 +161,13 @@
       <table>
         <thead>
           <tr>
-            <th class="sortable" data-key="name" style="width:26%">Park <span class="sort-ind" data-ind="name"></span></th>
-            <th class="sortable" data-key="state" style="width:8%">State <span class="sort-ind" data-ind="state"></span></th>
-            <th class="sortable right" data-key="windKmh" style="width:13%">Wind <span class="sort-ind" data-ind="windKmh"></span></th>
-            <th class="sortable right" data-key="gustKmh" style="width:13%">Gust <span class="sort-ind" data-ind="gustKmh"></span></th>
-            <th class="sortable" data-key="stationName" style="width:26%">Station <span class="sort-ind" data-ind="stationName"></span></th>
-            <th style="width:14%">Updated</th>
+            <th class="sortable" data-key="name" style="width:22%">Park <span class="sort-ind" data-ind="name"></span></th>
+            <th class="sortable" data-key="state" style="width:7%">State <span class="sort-ind" data-ind="state"></span></th>
+            <th class="sortable right" data-key="windKmh" style="width:15%">Current <span class="sort-ind" data-ind="windKmh"></span></th>
+            <th class="sortable right" data-key="f3WindKmh" style="width:15%">3h forecast <span class="sort-ind" data-ind="f3WindKmh"></span></th>
+            <th class="sortable right" data-key="t9WindKmh" style="width:15%">9am tomorrow <span class="sort-ind" data-ind="t9WindKmh"></span></th>
+            <th class="sortable" data-key="stationName" style="width:16%">Station <span class="sort-ind" data-ind="stationName"></span></th>
+            <th style="width:10%">Updated</th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
@@ -189,7 +190,8 @@
           <span style="color:var(--danger); font-weight:800">Danger</span> above <span id="dangerValue">50</span>.
         </p>
         <ul>
-          <li>This is <b>latest observed wind and gust</b>, not a forecast.</li>
+          <li><b>Current</b> is latest observed wind and gust.</li>
+          <li><b>3h forecast</b> and <b>9am tomorrow</b> come from BOM’s hourly forecast feed (gusts are shown when provided by BOM; otherwise they appear as —).</li>
           <li>Some parks may show <b>No BOM match</b> if the location search doesn’t find a good hit. Fix by tweaking that park’s <b>searchTerm</b> in the code.</li>
           <li>If BOM temporarily blocks requests, wait a minute and refresh. The loader is deliberately throttled.</li>
         </ul>
@@ -433,6 +435,15 @@
     return `${Math.round(v)} km/h`;
   }
 
+  function formatWindGust(w, g){
+    const wOk = !(w === null || w === undefined || Number.isNaN(w));
+    const gOk = !(g === null || g === undefined || Number.isNaN(g));
+    if (!wOk && !gOk) return '—';
+    const wTxt = wOk ? Math.round(w) : '—';
+    const gTxt = gOk ? Math.round(g) : '—';
+    return `${wTxt} (${gTxt}) km/h`;
+  }
+
   function levelFor(v){
     if (v === null || v === undefined || Number.isNaN(v)) return 'none';
     if (v > DANGER_KMH) return 'danger';
@@ -457,6 +468,20 @@
     return '';
   }
 
+  function cellClassForPair(w, g){
+    // classify by whichever is worse
+    const wl = levelFor(w);
+    const gl = levelFor(g);
+    const lvl = (wl === 'danger' || gl === 'danger') ? 'danger'
+      : (wl === 'warning' || gl === 'warning') ? 'warning'
+      : (wl === 'ok' || gl === 'ok') ? 'ok'
+      : 'none';
+    if (lvl === 'danger') return 'dangerCell';
+    if (lvl === 'warning') return 'warningCell';
+    if (lvl === 'ok') return 'okCell';
+    return '';
+  }
+
   function escapeHtml(s){
     return String(s)
       .replaceAll('&','&amp;')
@@ -472,6 +497,8 @@
       case 'state': return row.state;
       case 'windKmh': return row.windKmh;
       case 'gustKmh': return row.gustKmh;
+      case 'f3WindKmh': return row.f3WindKmh;
+      case 't9WindKmh': return row.t9WindKmh;
       case 'stationName': return row.stationName;
       default: return null;
     }
@@ -607,8 +634,9 @@
             </div>
           </td>
           <td class="small muted">${escapeHtml(r.state)}</td>
-          <td class="right ${cellClassFor(r.windKmh)}">${formatKmh(r.windKmh)}</td>
-          <td class="right ${cellClassFor(r.gustKmh)}">${formatKmh(r.gustKmh)}</td>
+          <td class="right ${cellClassForPair(r.windKmh, r.gustKmh)}">${formatWindGust(r.windKmh, r.gustKmh)}</td>
+          <td class="right ${cellClassForPair(r.f3WindKmh, r.f3GustKmh)}">${formatWindGust(r.f3WindKmh, r.f3GustKmh)}</td>
+          <td class="right ${cellClassForPair(r.t9WindKmh, r.t9GustKmh)}">${formatWindGust(r.t9WindKmh, r.t9GustKmh)}</td>
           <td>${stationCol}</td>
           <td class="right">${updatedCol}</td>
         </tr>
@@ -706,8 +734,10 @@
   }
 
   async function bomObservations(geohash){
-    const gh6 = String(geohash || '').slice(0, 6);
-    const url = `${BOM_BASE}/locations/${encodeURIComponent(gh6)}/observations`;
+    // Observations commonly accept a 6-char geohash, but not always.
+    // Send the full geohash and let the proxy try safe variants.
+    const gh = String(geohash || '');
+    const url = `${BOM_BASE}/locations/${encodeURIComponent(gh)}/observations`;
     const json = await fetchJson(url);
 
     if (json?.errors?.length) {
@@ -716,6 +746,47 @@
     }
 
     return json;
+  }
+
+  // Hourly forecasts (broader coverage than 3-hourly)
+// We pass the location geohash and let the proxy try safe variants.
+async function bomForecastHourly(geohash){
+  const gh = String(geohash || '');
+  const url = `${BOM_BASE}/locations/${encodeURIComponent(gh)}/forecasts/hourly`;
+  const json = await fetchJson(url);
+  if (json?.errors?.length) {
+    const e = json.errors[0];
+    throw new Error(`${e.title || 'BOM error'}: ${e.detail || e.code || 'unknown'}`);
+  }
+  return json;
+}
+
+  // Timezone handling (keeps logic simple and avoids extra API calls)
+  const STATE_TZ = {
+    ACT: 'Australia/Sydney',
+    NSW: 'Australia/Sydney',
+    VIC: 'Australia/Sydney',
+    TAS: 'Australia/Hobart',
+    QLD: 'Australia/Brisbane',
+    SA: 'Australia/Adelaide',
+    NT: 'Australia/Darwin',
+    WA: 'Australia/Perth',
+  };
+
+  function partsInTz(d, tz){
+    const fmt = new Intl.DateTimeFormat('en-AU', {
+      timeZone: tz,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', hour12: false,
+    });
+    const parts = fmt.formatToParts(d);
+    const get = (type) => parts.find(p => p.type === type)?.value;
+    return {
+      year: Number(get('year')),
+      month: Number(get('month')),
+      day: Number(get('day')),
+      hour: Number(get('hour')),
+    };
   }
 
   async function loadData(){
@@ -736,6 +807,10 @@
           loaded: false,
           windKmh: null,
           gustKmh: null,
+          f3WindKmh: null,
+          f3GustKmh: null,
+          t9WindKmh: null,
+          t9GustKmh: null,
           stationName: null,
           stationId: null,
           issueTime: null,
@@ -747,7 +822,13 @@
           const loc = await bomSearchLocation(p.searchTerm, p.state);
           if (!loc?.geohash) throw new Error('No BOM match');
 
-          const obs = await bomObservations(loc.geohash);
+          // Load current observations + hourly forecasts (best available wind forecast from BOM API)
+          const tz = STATE_TZ[p.state] || 'Australia/Sydney';
+          const [obs, hourly] = await Promise.all([
+            bomObservations(loc.geohash),
+            bomForecastHourly(loc.geohash).catch(() => null),
+          ]);
+
           const d = obs?.data || {};
 
           row.windKmh = d?.wind?.speed_kilometre ?? null;
@@ -755,6 +836,89 @@
           row.stationName = d?.station?.name ?? null;
           row.stationId = d?.station?.bom_id ?? null;
           row.issueTime = obs?.metadata?.issue_time ?? obs?.metadata?.response_timestamp ?? null;
+
+          // Forecast picks (BOM hourly)
+          // We map hourly items into a simple list: {time, wind, gust}
+          // Payload shape can vary, so we accept a couple of common structures.
+          const hourlyRaw = hourly?.data;
+          const hourlyItems = Array.isArray(hourlyRaw)
+            ? hourlyRaw
+            : Array.isArray(hourlyRaw?.forecasts)
+              ? hourlyRaw.forecasts
+              : Array.isArray(hourlyRaw?.hours)
+                ? hourlyRaw.hours
+                : null;
+
+          if (Array.isArray(hourlyItems)) {
+            const items = hourlyItems
+              .map(it => {
+                const time = it?.time ?? it?.valid_time ?? it?.date_time ?? null;
+
+                // Wind speed: try a few known field shapes
+                const wind =
+                  it?.wind?.speed_kilometre ??
+                  it?.wind?.speed_kmh ??
+                  it?.wind_speed_kilometre ??
+                  it?.wind_speed_kmh ??
+                  null;
+
+                // Gust: BOM hourly field names vary by feed/version.
+                // Try a wide set of shapes so we can display gusts when they exist.
+                const gust =
+                  // Common shapes
+                  it?.gust?.speed_kilometre ??
+                  it?.wind_gust?.speed_kilometre ??
+                  // Sometimes nested under wind
+                  it?.wind?.gust?.speed_kilometre ??
+                  it?.wind?.gust_speed_kilometre ??
+                  it?.wind?.gust_speed_kmh ??
+                  it?.wind?.gust_kilometre ??
+                  it?.wind?.gust_kmh ??
+                  // Flat field variants
+                  it?.gust_speed_kilometre ??
+                  it?.gust_speed_kmh ??
+                  it?.gust_kilometre ??
+                  it?.gust_kmh ??
+                  null;
+
+                return { time, wind, gust };
+              })
+              .filter(it => it.time);
+
+            // 3h forecast = first forecast at/after now + 3 hours
+            const now = new Date();
+            const target3h = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+            const target3hMs = target3h.getTime();
+
+            const pick3h = items
+              .map(it => ({...it, ms: Date.parse(it.time)}))
+              .filter(it => Number.isFinite(it.ms) && it.ms >= target3hMs)
+              .sort((a, b) => a.ms - b.ms)[0] || null;
+
+            if (pick3h) {
+              row.f3WindKmh = pick3h.wind;
+              row.f3GustKmh = pick3h.gust;
+            }
+
+            // 9am tomorrow (local park timezone) — pick closest hourly item to 09:00
+            const tz = STATE_TZ[p.state] || 'Australia/Sydney';
+            const tomorrowParts = partsInTz(new Date(Date.now() + 24 * 60 * 60 * 1000), tz);
+
+            const candidates = items
+              .map(it => ({...it, d: new Date(it.time)}))
+              .map(it => ({...it, p: partsInTz(it.d, tz)}))
+              .filter(it => it.p.year === tomorrowParts.year && it.p.month === tomorrowParts.month && it.p.day === tomorrowParts.day)
+              .map(it => ({...it, diff: Math.abs(it.p.hour - 9), ms: Date.parse(it.time)}))
+              .filter(it => Number.isFinite(it.ms))
+              .sort((a, b) => (a.diff - b.diff) || (a.ms - b.ms));
+
+            const pick9 = candidates[0] || null;
+            if (pick9 && pick9.diff <= 1) {
+              row.t9WindKmh = pick9.wind;
+              row.t9GustKmh = pick9.gust;
+            }
+          }
+
           row.severity = rowLevel(row);
           row.loaded = true;
         } catch(e){
