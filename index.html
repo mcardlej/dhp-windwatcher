@@ -112,15 +112,15 @@
     .icon-btn{display:inline-flex; align-items:center; justify-content:center; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px; font-size:14px; font-weight:600; cursor:pointer; color:var(--text)}
     .icon-btn:hover{border-color:#8aa4d6;}
 
-    .theme-toggle{position:relative; display:inline-flex; align-items:center; gap:8px; padding:8px 10px; background:var(--card); border:1px solid var(--line); border-radius:999px; cursor:pointer; font-size:12px; color:var(--muted); user-select:none}
+    .theme-toggle{position:relative; display:inline-flex; align-items:center; justify-content:center; padding:10px; background:var(--card); border:1px solid var(--line); border-radius:10px; cursor:pointer; color:var(--text); user-select:none}
+    .theme-toggle:hover{border-color:#8aa4d6;}
     .theme-toggle input{position:absolute; opacity:0; width:1px; height:1px; margin:0; padding:0; border:0; min-width:0;}
-    .theme-toggle .switch{position:relative; width:34px; height:18px; background:var(--line); border-radius:999px; flex:0 0 auto; transition:background .2s;}
-    .theme-toggle .switch::after{content:''; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:999px; background:var(--card); box-shadow:0 1px 2px rgba(0,0,0,.2); transition:transform .2s;}
-    .theme-toggle input:checked + .switch{background:var(--ok);}
-    .theme-toggle input:checked + .switch::after{transform:translateX(16px);}
-    .theme-toggle input:focus-visible + .switch{box-shadow:0 0 0 3px rgba(138,164,214,.35);}
-    .theme-toggle input:checked ~ .theme-label{color:var(--text);}
-    .theme-label{white-space:nowrap;}
+    .theme-toggle:focus-within{box-shadow:0 0 0 3px rgba(138,164,214,.35);}
+    .theme-toggle .theme-icon{display:inline-flex; align-items:center; justify-content:center;}
+    .theme-toggle .theme-icon svg{width:18px; height:18px; display:block;}
+    .theme-toggle .icon-sun{display:none;}
+    .theme-toggle input:checked ~ .theme-icon .icon-sun{display:block;}
+    .theme-toggle input:checked ~ .theme-icon .icon-moon{display:none;}
 
     .modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; padding:18px; z-index:9999;}
     .modal.open{display:flex;}
@@ -187,8 +187,15 @@
         </button>
         <label class="theme-toggle" title="Toggle dark mode">
           <input id="darkModeToggle" type="checkbox" aria-label="Toggle dark mode" />
-          <span class="switch" aria-hidden="true"></span>
-          <span class="theme-label">Dark mode</span>
+          <span class="theme-icon" aria-hidden="true">
+            <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"></path>
+            </svg>
+            <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+            </svg>
+          </span>
         </label>
       </div>
     </div>
