@@ -663,17 +663,37 @@
   }
 
   function formatHourLabelMs(ms, timeZone){
-    // "10am" / "12pm" in the desired timezone
+    // "10am" / "12pm" / "9:30am" in the desired timezone
     try {
-      const s = new Intl.DateTimeFormat('en-AU', { hour: 'numeric', hour12: true, timeZone }).format(new Date(ms));
-      return String(s).replace(/\s+/g,'').toLowerCase();
+      const parts = new Intl.DateTimeFormat('en-AU', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+        timeZone
+      }).formatToParts(new Date(ms));
+
+      const get = (type) => parts.find(p => p.type === type)?.value ?? '';
+      const hour = get('hour');
+      const minute = get('minute'); // "00" or "30" (etc)
+      const dayPeriod = get('dayPeriod'); // "AM"/"PM"
+
+      let out = String(hour || '').trim();
+      if (minute && minute !== '00') out += `:${minute}`;
+      out += String(dayPeriod || '').trim();
+
+      return out
+        .replace(/\s+/g, '')
+        .replaceAll('.', '')
+        .toLowerCase();
     } catch {
       // Fallback: local time
       const d = new Date(ms);
+      const m = d.getMinutes();
       let h = d.getHours();
       const suffix = h >= 12 ? 'pm' : 'am';
       h = h % 12;
       if (h === 0) h = 12;
+      if (m && m !== 0) return `${h}:${String(m).padStart(2,'0')}${suffix}`;
       return `${h}${suffix}`;
     }
   }
@@ -1328,6 +1348,8 @@ async function bomForecastHourly(geohash){
       try {
         const ms = Date.parse('2026-01-22T01:00:00Z'); // should be 12pm in Sydney
         assert('formatHourLabelMs Sydney DST', formatHourLabelMs(ms, 'Australia/Sydney') === '12pm');
+        const ms2 = Date.parse('2026-01-22T00:00:00Z'); // should be 10:30am in Adelaide (ACDT = UTC+10:30)
+        assert('formatHourLabelMs Adelaide half-hour', formatHourLabelMs(ms2, 'Australia/Adelaide') === '10:30am');
       } catch {}
 
       allRows = [
