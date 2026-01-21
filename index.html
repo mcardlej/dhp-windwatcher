@@ -617,28 +617,72 @@
 
   const HOUR_MS = 60 * 60 * 1000;
   let forecastSlots = [];
+  let forecastSlotsTz = null;
 
-  function formatHourLabel(d){
-    let h = d.getHours();
-    const suffix = h >= 12 ? 'pm' : 'am';
-    h = h % 12;
-    if (h === 0) h = 12;
-    return `${h}${suffix}`;
+  function timeZoneForState(state){
+    // Use IANA zones so DST is handled correctly.
+    // Note: NSW/ACT/VIC/TAS share the same rules; SA is half-hour offset; QLD/NT/WA have no DST.
+    switch(String(state || '').toUpperCase()){
+      case 'NSW':
+      case 'ACT':
+      case 'VIC':
+      case 'TAS':
+        return 'Australia/Sydney';
+      case 'QLD':
+        return 'Australia/Brisbane';
+      case 'SA':
+        return 'Australia/Adelaide';
+      case 'NT':
+        return 'Australia/Darwin';
+      case 'WA':
+        return 'Australia/Perth';
+      default:
+        return null;
+    }
   }
 
-  function buildForecastSlots(base = new Date()){
-    const start = new Date(base);
-    start.setMinutes(0, 0, 0);
-    if (start.getTime() <= base.getTime()) start.setHours(start.getHours() + 1);
+  function getDisplayTimeZone(){
+    const st = els.stateFilter?.value || 'ALL';
+    const tz = (st !== 'ALL') ? timeZoneForState(st) : null;
+    if (tz) return tz;
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    } catch {
+      return 'UTC';
+    }
+  }
+
+  function formatHourLabelMs(ms, timeZone){
+    // "10am" / "12pm" in the desired timezone
+    try {
+      const s = new Intl.DateTimeFormat('en-AU', { hour: 'numeric', hour12: true, timeZone }).format(new Date(ms));
+      return String(s).replace(/\s+/g,'').toLowerCase();
+    } catch {
+      // Fallback: local time
+      const d = new Date(ms);
+      let h = d.getHours();
+      const suffix = h >= 12 ? 'pm' : 'am';
+      h = h % 12;
+      if (h === 0) h = 12;
+      return `${h}${suffix}`;
+    }
+  }
+
+  function buildForecastSlots(baseMs = Date.now(), timeZone = getDisplayTimeZone()){
+    // BOM hourly forecast timestamps are UTC (`...Z`) and always align to UTC hour boundaries.
+    // Build our slots on UTC hour boundaries to avoid viewer-local DST shifts.
+    const startMs = (Math.floor(baseMs / HOUR_MS) * HOUR_MS) + HOUR_MS; // next full UTC hour
     return Array.from({length: 12}, (_, i) => {
-      const d = new Date(start.getTime() + i * HOUR_MS);
-      return { ms: d.getTime(), label: formatHourLabel(d) };
+      const ms = startMs + i * HOUR_MS;
+      return { ms, label: formatHourLabelMs(ms, timeZone) };
     });
   }
 
   function ensureForecastSlots(){
-    if (!Array.isArray(forecastSlots) || forecastSlots.length !== 12) {
-      forecastSlots = buildForecastSlots();
+    const tz = getDisplayTimeZone();
+    if (!Array.isArray(forecastSlots) || forecastSlots.length !== 12 || forecastSlotsTz !== tz) {
+      forecastSlots = buildForecastSlots(Date.now(), tz);
+      forecastSlotsTz = tz;
     }
     return forecastSlots;
   }
@@ -1075,7 +1119,8 @@ async function bomForecastHourly(geohash){
     const st = els.stateFilter.value;
     const parks = (st === 'ALL') ? PARKS : PARKS.filter(p => p.state === st);
 
-    forecastSlots = buildForecastSlots();
+    forecastSlots = buildForecastSlots(Date.now(), getDisplayTimeZone());
+    forecastSlotsTz = getDisplayTimeZone();
     updateHourHeaders();
 
     setRefreshing(true);
@@ -1181,9 +1226,8 @@ async function bomForecastHourly(geohash){
             items.forEach(it => {
               const ms = Date.parse(it.time);
               if (!Number.isFinite(ms)) return;
-              const d = new Date(ms);
-              d.setMinutes(0, 0, 0);
-              const hourMs = d.getTime();
+              // Align by UTC hour boundary (BOM supplies UTC `...Z` timestamps).
+              const hourMs = Math.floor(ms / HOUR_MS) * HOUR_MS;
               if (hourlyByHour.has(hourMs)) hourlyByHour.set(hourMs, it.gust);
             });
 
@@ -1262,6 +1306,13 @@ async function bomForecastHourly(geohash){
 
       // timeAgo sanity
       assert('timeAgo just now', timeAgo(new Date().toISOString()) === 'just now');
+
+      // Timezone formatting sanity (guards the common 1-hour DST mismatch seen in NSW during summer)
+      // 2026-01-22 is during DST in Australia/Sydney (AEDT = UTC+11).
+      try {
+        const ms = Date.parse('2026-01-22T01:00:00Z'); // should be 12pm in Sydney
+        assert('formatHourLabelMs Sydney DST', formatHourLabelMs(ms, 'Australia/Sydney') === '12pm');
+      } catch {}
 
       allRows = [
         {state:'SA', name:'A', loaded:true, severity:'danger', gustKmh:70, hourlyGusts:new Map(), stationName:'X'},
