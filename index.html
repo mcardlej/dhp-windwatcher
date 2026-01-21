@@ -459,6 +459,7 @@
   const LOC_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12h, matches worker /locations cache
   let allRows = [];
   let isLoading = false;
+  let tableState = 'blank';
   const TABLE_COL_COUNT = document.querySelectorAll('thead th').length || 15;
 
   // Sorting (applies after filters). Updated column is intentionally not sortable.
@@ -793,42 +794,52 @@
     const slots = ensureForecastSlots();
     if (!rows.length) {
       if (isLoading) {
+        if (tableState !== 'loading') {
+          els.tbody.innerHTML = `
+            <tr class="loading-row">
+              <td class="empty-cell" colspan="${TABLE_COL_COUNT}">
+                <div class="loading-state" role="status" aria-live="polite">
+                  <div class="spinner" aria-hidden="true"></div>
+                  <div class="loading-title">Loading parks...</div>
+                  <div class="small muted">Fetching the latest BOM data.</div>
+                </div>
+              </td>
+            </tr>
+          `;
+          tableState = 'loading';
+        }
+        return;
+      }
+      if (!allRows.length) {
+        if (tableState !== 'blank') {
+          els.tbody.innerHTML = '';
+          tableState = 'blank';
+        }
+        return;
+      }
+
+      if (tableState !== 'empty') {
         els.tbody.innerHTML = `
-          <tr class="loading-row">
+          <tr class="empty-row">
             <td class="empty-cell" colspan="${TABLE_COL_COUNT}">
-              <div class="loading-state" role="status" aria-live="polite">
-                <div class="spinner" aria-hidden="true"></div>
-                <div class="loading-title">Loading parks...</div>
-                <div class="small muted">Fetching the latest BOM data.</div>
+              <div class="empty-state">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="11" cy="11" r="7"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  <line x1="8" y1="8" x2="14" y2="14"></line>
+                  <line x1="14" y1="8" x2="8" y2="14"></line>
+                </svg>
+                <div class="empty-title">No parks match the current filters.</div>
+                <div class="small muted">Try adjusting the state, search, or alert filters.</div>
               </div>
             </td>
           </tr>
         `;
-        return;
+        tableState = 'empty';
       }
-      if (!allRows.length) {
-        els.tbody.innerHTML = '';
-        return;
-      }
-
-      els.tbody.innerHTML = `
-        <tr class="empty-row">
-          <td class="empty-cell" colspan="${TABLE_COL_COUNT}">
-            <div class="empty-state">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="11" cy="11" r="7"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                <line x1="8" y1="8" x2="14" y2="14"></line>
-                <line x1="14" y1="8" x2="8" y2="14"></line>
-              </svg>
-              <div class="empty-title">No parks match the current filters.</div>
-              <div class="small muted">Try adjusting the state, search, or alert filters.</div>
-            </div>
-          </td>
-        </tr>
-      `;
       return;
     }
+    tableState = 'rows';
     els.tbody.innerHTML = rows.map(r => {
       const badge = badgeFor(r.severity);
       const updatedText = r.issueTime ? timeAgo(r.issueTime) : '—';
