@@ -177,6 +177,17 @@
 
     .dangerFlash{
       position:relative;
+      isolation:isolate;
+    }
+    .dangerFlash::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background:var(--dangerFlashBg);
+      opacity:0;
+      z-index:0;
+      animation: dangerFillFlash 1s ease-in-out infinite;
     }
     .dangerFlash::after{
       content:"";
@@ -184,17 +195,37 @@
       inset:0;
       pointer-events:none;
       box-sizing:border-box;
-      border:2px solid var(--danger);
-      opacity:.25;
-      box-shadow:0 0 0 0 transparent;
+      border-top:2px solid var(--danger);
+      border-bottom:2px solid var(--danger);
+      border-left:2px solid var(--danger);
+      border-right:2px solid var(--danger);
+      opacity:.35;
+      z-index:1;
       animation: dangerBorderFlash 1s ease-in-out infinite;
     }
+
+    /* Merge adjacent danger cells into a single “block” outline */
+    .dangerFlash:not(.dangerGroupStart)::after{border-left-width:0;}
+    .dangerFlash:not(.dangerGroupEnd)::after{border-right-width:0;}
+
+    @keyframes dangerFillFlash{
+      0%, 100%{ opacity:0; }
+      50%{ opacity:1; }
+    }
     @keyframes dangerBorderFlash{
-      0%, 100%{ opacity:.25; box-shadow:0 0 0 0 transparent; }
-      50%{ opacity:1; box-shadow:0 0 0 2px var(--dangerFlashShadow); }
+      0%, 100%{ opacity:.35; }
+      50%{ opacity:1; }
+    }
+
+    /* Don’t animate during refresh/loading; start after render completes */
+    html[data-refreshing="1"] .dangerFlash::before,
+    html[data-refreshing="1"] .dangerFlash::after{
+      animation:none !important;
+      opacity:0 !important;
     }
     @media (prefers-reduced-motion: reduce){
-      .dangerFlash::after{animation:none; opacity:1; box-shadow:none;}
+      .dangerFlash::before{animation:none; opacity:1;}
+      .dangerFlash::after{animation:none; opacity:1;}
     }
 
     /* Info button + modal */
@@ -665,10 +696,26 @@
 
   function cellClassFor(v){
     const lvl = levelFor(v);
-    if (lvl === 'danger') return 'dangerCell dangerFlash';
+    if (lvl === 'danger') return 'dangerCell';
     if (lvl === 'warning') return 'warningCell';
     if (lvl === 'ok') return 'okCell';
     return '';
+  }
+
+  function flashGroupClass(levels, idx){
+    if (!Array.isArray(levels) || levels[idx] !== 'danger') return '';
+    const prevDanger = idx > 0 && levels[idx - 1] === 'danger';
+    const nextDanger = idx < (levels.length - 1) && levels[idx + 1] === 'danger';
+    return [
+      'dangerFlash',
+      prevDanger ? '' : 'dangerGroupStart',
+      nextDanger ? '' : 'dangerGroupEnd',
+    ].filter(Boolean).join(' ');
+  }
+
+  function setRefreshing(on){
+    if (on) document.documentElement.setAttribute('data-refreshing', '1');
+    else document.documentElement.removeAttribute('data-refreshing');
   }
 
   function escapeHtml(s){
@@ -882,11 +929,17 @@
         ? `<span class="muted">—</span>`
         : `<span class="small">${escapeHtml(updatedText)}</span>`;
 
-      const hourCells = slots.map(slot => {
-        const v = (r.hourlyGusts && typeof r.hourlyGusts.get === 'function')
+      const currentVal = r.gustKmh;
+      const hourVals = slots.map(slot => (
+        (r.hourlyGusts && typeof r.hourlyGusts.get === 'function')
           ? r.hourlyGusts.get(slot.ms)
-          : null;
-        return `<td class="right hour-cell ${cellClassFor(v)}">${formatKmh(v)}</td>`;
+          : null
+      ));
+      const levels = [currentVal, ...hourVals].map(levelFor);
+
+      const hourCells = hourVals.map((v, idx) => {
+        const flash = flashGroupClass(levels, idx + 1);
+        return `<td class="right hour-cell ${cellClassFor(v)} ${flash}">${formatKmh(v)}</td>`;
       }).join('');
 
       return `
@@ -901,7 +954,7 @@
             ${errorLine}
             ${stationLine}
           </td>
-          <td class="right current-col ${cellClassFor(r.gustKmh)}">${formatKmh(r.gustKmh)}</td>
+          <td class="right current-col ${cellClassFor(currentVal)} ${flashGroupClass(levels, 0)}">${formatKmh(currentVal)}</td>
           ${hourCells}
           <td class="right updated-col">${updatedCol}</td>
         </tr>
@@ -1063,6 +1116,7 @@ async function bomForecastHourly(geohash){
     forecastSlots = buildForecastSlots();
     updateHourHeaders();
 
+    setRefreshing(true);
     isLoading = true;
     render();
     setStatus(`Loading ${parks.length} parks…`);
@@ -1195,6 +1249,7 @@ async function bomForecastHourly(geohash){
     allRows = results;
     isLoading = false;
     render();
+    raf(() => setRefreshing(false));
 
     const hadAnySuccess = results.some(r => {
       if (r.gustKmh != null) return true;
