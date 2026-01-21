@@ -1151,8 +1151,8 @@ async function bomForecastHourly(geohash){
       assert('timeAgo just now', timeAgo(new Date().toISOString()) === 'just now');
 
       allRows = [
-        {state:'SA', name:'A', loaded:true, severity:'danger', gustKmh:60, hourlyGusts:new Map(), stationName:'X'},
-        {state:'SA', name:'B', loaded:true, severity:'warning', gustKmh:48, hourlyGusts:new Map(), stationName:'Y'},
+        {state:'SA', name:'A', loaded:true, severity:'danger', gustKmh:70, hourlyGusts:new Map(), stationName:'X'},
+        {state:'SA', name:'B', loaded:true, severity:'warning', gustKmh:55, hourlyGusts:new Map(), stationName:'Y'},
         {state:'SA', name:'C', loaded:true, severity:'ok', gustKmh:10, hourlyGusts:new Map(), stationName:null},
       ];
       els.stateFilter.value = 'SA';
