@@ -650,6 +650,7 @@
   const HOUR_MS = 60 * 60 * 1000;
   let forecastSlots = [];
   let forecastSlotsTz = null;
+  let forecastSlotsMode = null; // 'relative' | 'clock'
 
   function timeZoneForState(state){
     // Use IANA zones so DST is handled correctly.
@@ -695,6 +696,12 @@
     }
   }
 
+  function getHourHeaderMode(){
+    // In ALL mode a single set of clock-times cannot be "local" for every state,
+    // so use relative headings that are globally unambiguous.
+    return (els.stateFilter?.value === 'ALL') ? 'relative' : 'clock';
+  }
+
   function formatHourLabelMs(ms, timeZone){
     // "10am" / "12pm" in the desired timezone
     try {
@@ -711,21 +718,24 @@
     }
   }
 
-  function buildForecastSlots(baseMs = Date.now(), timeZone = getDisplayTimeZone()){
+  function buildForecastSlots(baseMs = Date.now(), timeZone = getDisplayTimeZone(), mode = getHourHeaderMode()){
     // BOM hourly forecast timestamps are UTC (`...Z`) and always align to UTC hour boundaries.
     // Build our slots on UTC hour boundaries to avoid viewer-local DST shifts.
     const startMs = (Math.floor(baseMs / HOUR_MS) * HOUR_MS) + HOUR_MS; // next full UTC hour
     return Array.from({length: 12}, (_, i) => {
       const ms = startMs + i * HOUR_MS;
-      return { ms, label: formatHourLabelMs(ms, timeZone) };
+      const label = (mode === 'relative') ? `+${i+1}h` : formatHourLabelMs(ms, timeZone);
+      return { ms, label };
     });
   }
 
   function ensureForecastSlots(){
     const tz = getDisplayTimeZone();
-    if (!Array.isArray(forecastSlots) || forecastSlots.length !== 12 || forecastSlotsTz !== tz) {
-      forecastSlots = buildForecastSlots(Date.now(), tz);
+    const mode = getHourHeaderMode();
+    if (!Array.isArray(forecastSlots) || forecastSlots.length !== 12 || forecastSlotsTz !== tz || forecastSlotsMode !== mode) {
+      forecastSlots = buildForecastSlots(Date.now(), tz, mode);
       forecastSlotsTz = tz;
+      forecastSlotsMode = mode;
     }
     return forecastSlots;
   }
@@ -1162,8 +1172,11 @@ async function bomForecastHourly(geohash){
     const st = els.stateFilter.value;
     const parks = (st === 'ALL') ? PARKS : PARKS.filter(p => p.state === st);
 
-    forecastSlots = buildForecastSlots(Date.now(), getDisplayTimeZone());
-    forecastSlotsTz = getDisplayTimeZone();
+    const tz = getDisplayTimeZone();
+    const mode = getHourHeaderMode();
+    forecastSlots = buildForecastSlots(Date.now(), tz, mode);
+    forecastSlotsTz = tz;
+    forecastSlotsMode = mode;
     updateHourHeaders();
 
     setRefreshing(true);
@@ -1419,8 +1432,11 @@ async function bomForecastHourly(geohash){
       applyTimeModeUi();
       savePrefs();
       // Rebuild headers using the selected time mode.
-      forecastSlots = buildForecastSlots(Date.now(), getDisplayTimeZone());
-      forecastSlotsTz = getDisplayTimeZone();
+      const tz = getDisplayTimeZone();
+      const mode = getHourHeaderMode();
+      forecastSlots = buildForecastSlots(Date.now(), tz, mode);
+      forecastSlotsTz = tz;
+      forecastSlotsMode = mode;
       updateHourHeaders();
       render();
     });
