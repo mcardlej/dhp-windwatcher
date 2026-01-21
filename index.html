@@ -90,6 +90,7 @@
     th,td{padding:10px 12px; border-bottom:1px solid var(--line); font-size:13px; vertical-align:top}
     th{color:var(--muted); text-align:left; font-weight:600;}
     tr:last-child td{border-bottom:none;}
+    .table-disclaimer{padding:10px 12px; border-top:1px solid var(--line);}
 
     /* Sortable headers */
     th.sortable{cursor:pointer; user-select:none}
@@ -266,12 +267,10 @@
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
-        <tfoot>
-          <tr>
-            <td colspan="15" class="small muted">Proof of concept only. Do not rely on this data for operational decisions.</td>
-          </tr>
-        </tfoot>
       </table>
+      <div class="table-disclaimer small muted">
+        Proof of concept only. Do not rely on this data for operational decisions.
+      </div>
     </div>
   </div>
 
