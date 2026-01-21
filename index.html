@@ -45,7 +45,7 @@
     }
 
     header{padding:18px 18px 10px; border-bottom:1px solid var(--line);}
-    .wrap{padding:14px 18px 22px; max-width:1100px; margin:0 auto;}
+    .wrap{padding:14px 18px 22px; max-width:100%; width:100%; margin:0 auto;}
 
     .title-row{display:flex; align-items:flex-start; gap:14px;}
     .title-logo{height:44px; width:auto; display:block;}
@@ -96,10 +96,11 @@
     th.sortable:hover{background:rgba(138,164,214,.15)}
     .sort-ind{display:inline-block; margin-left:6px; font-size:11px; color:var(--muted)}
 
-    /* Keep park name + badge on one line (avoid row height blowouts) */
-    .row-top{display:flex; gap:8px; align-items:center; flex-wrap:nowrap; min-width:0;}
-    .park-name{min-width:0; flex:1 1 auto;}
-    .park-name b{display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    /* Keep park name + state + badge on one line */
+    .row-top{display:block;}
+    .park-name{display:flex; align-items:center; gap:8px; min-width:0;}
+    .park-name b{flex:1 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .park-state{flex:0 0 auto; color:var(--muted); font-weight:600; white-space:nowrap;}
     .badge{display:inline-flex; gap:6px; align-items:center; font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); white-space:nowrap; flex:0 0 auto}
     .badge.warning{border-color:rgba(217,119,6,.55); color:var(--warning)}
     .badge.danger{border-color:rgba(217,45,32,.55); color:var(--danger)}
@@ -133,13 +134,6 @@
     .modal-body p{margin:0 0 10px; color:var(--muted); font-size:13px; line-height:1.45}
     .modal-body ul{margin:8px 0 0 18px; padding:0; color:var(--muted); font-size:13px; line-height:1.45}
     .modal-body li{margin:6px 0}
-  
-/* Keep park name + badge on one line */
-.row-top{display:block;}
-.park-name{display:inline-flex; align-items:center; gap:8px; min-width:0; white-space:nowrap;}
-.park-name b{overflow:hidden; text-overflow:ellipsis;}
-.badge{flex:0 0 auto;}
-
 </style>
 </head>
 <body>
@@ -206,13 +200,10 @@
       <table>
         <thead>
           <tr>
-            <th class="sortable" data-key="name" style="width:26%">Park <span class="sort-ind" data-ind="name"></span></th>
-            <th class="sortable" data-key="state" style="width:7%">State <span class="sort-ind" data-ind="state"></span></th>
-            <th class="sortable right" data-key="windKmh" style="width:15%">Current <span class="sort-ind" data-ind="windKmh"></span></th>
-            <th class="sortable right" data-key="f3WindKmh" style="width:15%">3h forecast <span class="sort-ind" data-ind="f3WindKmh"></span></th>
-            <th class="sortable right" data-key="t9WindKmh" style="width:15%">9am tomorrow <span class="sort-ind" data-ind="t9WindKmh"></span></th>
-            <th style="width:18%">Station</th>
-            <th style="width:13%">Updated</th>
+            <th class="sortable" data-key="name" style="width:46%">Park <span class="sort-ind" data-ind="name"></span></th>
+            <th class="sortable right" data-key="gustKmh" style="width:18%">Current gust <span class="sort-ind" data-ind="gustKmh"></span></th>
+            <th class="sortable right" data-key="f12GustKmh" style="width:18%">+12h gust <span class="sort-ind" data-ind="f12GustKmh"></span></th>
+            <th style="width:18%">Updated</th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
@@ -230,13 +221,13 @@
       </div>
       <div class="modal-body">
         <p>
-          Uses Bureau of Meteorology (BOM) data (<span class="nowrap">api.weather.bom.gov.au</span>). Wind and gust are in km/h.
+          Uses Bureau of Meteorology (BOM) data (<span class="nowrap">api.weather.bom.gov.au</span>). Gusts are in km/h.
           <span style="color:var(--warning); font-weight:800">Warning</span> above <span id="warningValue">40</span> and
           <span style="color:var(--danger); font-weight:800">Danger</span> above <span id="dangerValue">50</span>.
         </p>
         <ul>
-          <li><b>Current</b> is latest observed wind and gust.</li>
-          <li><b>3h forecast</b> and <b>9am tomorrow</b> come from BOM’s hourly forecast feed (gusts are shown when provided by BOM; otherwise they appear as —).</li>
+          <li><b>Current gust</b> is the latest observed gust.</li>
+          <li><b>+12h gust</b> comes from BOM’s hourly forecast feed (gusts are shown when provided by BOM; otherwise they appear as —).</li>
           <li>Some parks may show <b>No BOM match</b> if the location search doesn’t find a good hit. Fix by tweaking that park’s <b>searchTerm</b> in the code.</li>
           <li>If BOM temporarily blocks requests, wait a minute and refresh. The loader is deliberately throttled.</li>
         </ul>
@@ -393,6 +384,13 @@
   // Sorting (applies after filters). Updated column is intentionally not sortable.
   let sortKey = null; // null = default (State then Park)
   let sortDir = 'asc';
+  const SORT_KEY_ALIASES = {
+    windKmh: 'gustKmh',
+    f3WindKmh: 'f12GustKmh',
+    t9WindKmh: 'f12GustKmh',
+    state: null,
+  };
+  const SORT_KEYS = new Set(['name', 'gustKmh', 'f12GustKmh']);
 
   // Filter toggles (live in the stats row)
   let showWarningParks = false;
@@ -474,7 +472,14 @@
     if (typeof p.darkMode === 'boolean') darkModeEnabled = p.darkMode;
 
     // Sort
-    if (typeof p.sortKey === 'string' || p.sortKey === null) sortKey = p.sortKey;
+    if (p.sortKey === null) {
+      sortKey = null;
+    } else if (typeof p.sortKey === 'string') {
+      const mapped = Object.prototype.hasOwnProperty.call(SORT_KEY_ALIASES, p.sortKey)
+        ? SORT_KEY_ALIASES[p.sortKey]
+        : p.sortKey;
+      sortKey = SORT_KEYS.has(mapped) ? mapped : null;
+    }
     if (p.sortDir === 'asc' || p.sortDir === 'desc') sortDir = p.sortDir;
   }
 
@@ -493,15 +498,6 @@
     return `${Math.round(v)} km/h`;
   }
 
-  function formatWindGust(w, g){
-    const wOk = !(w === null || w === undefined || Number.isNaN(w));
-    const gOk = !(g === null || g === undefined || Number.isNaN(g));
-    if (!wOk && !gOk) return '—';
-    const wTxt = wOk ? Math.round(w) : '—';
-    const gTxt = gOk ? Math.round(g) : '—';
-    return `${wTxt} (${gTxt}) km/h`;
-  }
-
   function levelFor(v){
     if (v === null || v === undefined || Number.isNaN(v)) return 'none';
     if (v > DANGER_KMH) return 'danger';
@@ -510,24 +506,20 @@
   }
 
   function rowLevel(row){
-    // Overall severity is the worst level across all three wind columns (wind OR gust).
-    // If any column hits Danger, the park is Danger. Otherwise if any hits Warning, the park is Warning.
-    // Otherwise if any has a valid reading, it's OK. Else none.
-    const pairs = [
-      [row.windKmh, row.gustKmh],
-      [row.f3WindKmh, row.f3GustKmh],
-      [row.t9WindKmh, row.t9GustKmh],
+    // Overall severity is the worst level across gust columns.
+    const vals = [
+      row.gustKmh,
+      row.f12GustKmh,
     ];
 
     let sawOk = false;
     let sawWarning = false;
 
-    for (const [w, g] of pairs){
-      const wl = levelFor(w);
-      const gl = levelFor(g);
-      if (wl === 'danger' || gl === 'danger') return 'danger';
-      if (wl === 'warning' || gl === 'warning') sawWarning = true;
-      if (wl === 'ok' || gl === 'ok') sawOk = true;
+    for (const v of vals){
+      const lvl = levelFor(v);
+      if (lvl === 'danger') return 'danger';
+      if (lvl === 'warning') sawWarning = true;
+      if (lvl === 'ok') sawOk = true;
     }
 
     if (sawWarning) return 'warning';
@@ -537,20 +529,6 @@
 
   function cellClassFor(v){
     const lvl = levelFor(v);
-    if (lvl === 'danger') return 'dangerCell';
-    if (lvl === 'warning') return 'warningCell';
-    if (lvl === 'ok') return 'okCell';
-    return '';
-  }
-
-  function cellClassForPair(w, g){
-    // classify by whichever is worse
-    const wl = levelFor(w);
-    const gl = levelFor(g);
-    const lvl = (wl === 'danger' || gl === 'danger') ? 'danger'
-      : (wl === 'warning' || gl === 'warning') ? 'warning'
-      : (wl === 'ok' || gl === 'ok') ? 'ok'
-      : 'none';
     if (lvl === 'danger') return 'dangerCell';
     if (lvl === 'warning') return 'warningCell';
     if (lvl === 'ok') return 'okCell';
@@ -570,11 +548,8 @@
     switch(key){
       case 'name': return row.name;
       case 'state': return row.state;
-      case 'windKmh': return row.windKmh;
       case 'gustKmh': return row.gustKmh;
-      case 'f3WindKmh': return row.f3WindKmh;
-      case 't9WindKmh': return row.t9WindKmh;
-      case 'stationName': return row.stationName;
+      case 'f12GustKmh': return row.f12GustKmh;
       default: return null;
     }
   }
@@ -627,7 +602,7 @@
     inds.forEach(el => {
       const k = el.getAttribute('data-ind');
       if (!sortKey){
-        el.textContent = (k === 'state' || k === 'name') ? '·' : '';
+        el.textContent = (k === 'name') ? '·' : '';
         return;
       }
       if (k !== sortKey) { el.textContent = ''; return; }
@@ -664,7 +639,7 @@
     els.stats.innerHTML = [
       `<span class="chip"><b>${total}</b> parks</span>`,
       `<span class="chip"><b>${ok}</b> OK</span>`,
-      `<span class="chip"><b>${missing}</b> no wind data</span>`,
+      `<span class="chip"><b>${missing}</b> no gust data</span>`,
       `<span class="chip"><b style="color:var(--warning)">${warning}</b> warning &gt; ${WARNING_KMH}</span>`,
       `<span class="chip"><b style="color:var(--danger)">${danger}</b> danger &gt; ${DANGER_KMH}</span>`,
       `<label class="toggle warn ${showWarningParks ? 'active' : ''}" style="margin-left:4px">
@@ -691,9 +666,13 @@
       const badge = badgeFor(r.severity);
       const updatedText = r.issueTime ? timeAgo(r.issueTime) : '—';
 
-      const parkSubLine = r.error
+      const errorLine = r.error
         ? `<div class="muted">${escapeHtml(r.error)}</div>`
         : '';
+
+      const stationLine = r.error
+        ? ''
+        : `<div class="small muted">Station: ${escapeHtml(r.stationName || '—')}</div>`;
 
       const updatedCol = r.error
         ? `<span class="muted">—</span>`
@@ -702,14 +681,18 @@
       return `
         <tr>
           <td>
-            <div class="row-top"><div class="park-name"><b>${escapeHtml(r.name)}</b>${badge}</div></div>
-            ${parkSubLine}
+            <div class="row-top">
+              <div class="park-name">
+                <b>${escapeHtml(r.name)}</b>
+                <span class="park-state">(${escapeHtml(r.state)})</span>
+                ${badge}
+              </div>
+            </div>
+            ${errorLine}
+            ${stationLine}
           </td>
-          <td class="small muted">${escapeHtml(r.state)}</td>
-          <td class="right ${cellClassForPair(r.windKmh, r.gustKmh)}">${formatWindGust(r.windKmh, r.gustKmh)}</td>
-          <td class="right ${cellClassForPair(r.f3WindKmh, r.f3GustKmh)}">${formatWindGust(r.f3WindKmh, r.f3GustKmh)}</td>
-          <td class="right ${cellClassForPair(r.t9WindKmh, r.t9GustKmh)}">${formatWindGust(r.t9WindKmh, r.t9GustKmh)}</td>
-          <td class="small muted nowrap">${r.error ? '—' : escapeHtml(r.stationName || '—')}</td>
+          <td class="right ${cellClassFor(r.gustKmh)}">${formatKmh(r.gustKmh)}</td>
+          <td class="right ${cellClassFor(r.f12GustKmh)}">${formatKmh(r.f12GustKmh)}</td>
           <td class="right">${updatedCol}</td>
         </tr>
       `;
@@ -862,45 +845,6 @@ async function bomForecastHourly(geohash){
   return json;
 }
 
-  // Timezone handling (keeps logic simple and avoids extra API calls)
-  const STATE_TZ = {
-    ACT: 'Australia/Sydney',
-    NSW: 'Australia/Sydney',
-    VIC: 'Australia/Sydney',
-    TAS: 'Australia/Hobart',
-    QLD: 'Australia/Brisbane',
-    SA: 'Australia/Adelaide',
-    NT: 'Australia/Darwin',
-    WA: 'Australia/Perth',
-  };
-
-  const TZ_FORMATTERS = new Map();
-
-  function getTzFormatter(tz){
-    let fmt = TZ_FORMATTERS.get(tz);
-    if (!fmt) {
-      fmt = new Intl.DateTimeFormat('en-AU', {
-        timeZone: tz,
-        year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', hour12: false,
-      });
-      TZ_FORMATTERS.set(tz, fmt);
-    }
-    return fmt;
-  }
-
-  function partsInTz(d, tz){
-    const fmt = getTzFormatter(tz);
-    const parts = fmt.formatToParts(d);
-    const get = (type) => parts.find(p => p.type === type)?.value;
-    return {
-      year: Number(get('year')),
-      month: Number(get('month')),
-      day: Number(get('day')),
-      hour: Number(get('hour')),
-    };
-  }
-
   async function loadData(){
     const st = els.stateFilter.value;
     const parks = (st === 'ALL') ? PARKS : PARKS.filter(p => p.state === st);
@@ -935,12 +879,8 @@ async function bomForecastHourly(geohash){
         const row = {
           ...p,
           loaded: false,
-          windKmh: null,
           gustKmh: null,
-          f3WindKmh: null,
-          f3GustKmh: null,
-          t9WindKmh: null,
-          t9GustKmh: null,
+          f12GustKmh: null,
           stationName: null,
           stationId: null,
           issueTime: null,
@@ -952,19 +892,18 @@ async function bomForecastHourly(geohash){
           const loc = await bomSearchLocation(p.searchTerm, p.state);
           if (!loc?.geohash) throw new Error('No BOM match');
 
-          // Load current observations + hourly forecasts (best available wind forecast from BOM API)
+          // Load current observations + hourly forecasts (best available gust forecast from BOM API)
           const { obs, hourly } = await getWeatherForGeohash(loc.geohash);
 
           const d = obs?.data || {};
 
-          row.windKmh = d?.wind?.speed_kilometre ?? null;
           row.gustKmh = d?.gust?.speed_kilometre ?? null;
           row.stationName = d?.station?.name ?? null;
           row.stationId = d?.station?.bom_id ?? null;
           row.issueTime = obs?.metadata?.issue_time ?? obs?.metadata?.response_timestamp ?? null;
 
           // Forecast picks (BOM hourly)
-          // We map hourly items into a simple list: {time, wind, gust}
+          // We map hourly items into a simple list: {time, gust}
           // Payload shape can vary, so we accept a couple of common structures.
           const hourlyRaw = hourly?.data;
           const hourlyItems = Array.isArray(hourlyRaw)
@@ -979,14 +918,6 @@ async function bomForecastHourly(geohash){
             const items = hourlyItems
               .map(it => {
                 const time = it?.time ?? it?.valid_time ?? it?.date_time ?? null;
-
-                // Wind speed: try a few known field shapes
-                const wind =
-                  it?.wind?.speed_kilometre ??
-                  it?.wind?.speed_kmh ??
-                  it?.wind_speed_kilometre ??
-                  it?.wind_speed_kmh ??
-                  null;
 
                 // Gust: BOM hourly field names vary by feed/version.
                 // Try a wide set of shapes so we can display gusts when they exist.
@@ -1007,41 +938,22 @@ async function bomForecastHourly(geohash){
                   it?.gust_kmh ??
                   null;
 
-                return { time, wind, gust };
+                return { time, gust };
               })
               .filter(it => it.time);
 
-            // 3h forecast = first forecast at/after now + 3 hours
+            // +12h forecast = first forecast at/after now + 12 hours
             const now = new Date();
-            const target3h = new Date(now.getTime() + 3 * 60 * 60 * 1000);
-            const target3hMs = target3h.getTime();
+            const target12h = new Date(now.getTime() + 12 * 60 * 60 * 1000);
+            const target12hMs = target12h.getTime();
 
-            const pick3h = items
+            const pick12h = items
               .map(it => ({...it, ms: Date.parse(it.time)}))
-              .filter(it => Number.isFinite(it.ms) && it.ms >= target3hMs)
+              .filter(it => Number.isFinite(it.ms) && it.ms >= target12hMs)
               .sort((a, b) => a.ms - b.ms)[0] || null;
 
-            if (pick3h) {
-              row.f3WindKmh = pick3h.wind;
-              row.f3GustKmh = pick3h.gust;
-            }
-
-            // 9am tomorrow (local park timezone) — pick closest hourly item to 09:00
-            const tz = STATE_TZ[p.state] || 'Australia/Sydney';
-            const tomorrowParts = partsInTz(new Date(Date.now() + 24 * 60 * 60 * 1000), tz);
-
-            const candidates = items
-              .map(it => ({...it, d: new Date(it.time)}))
-              .map(it => ({...it, p: partsInTz(it.d, tz)}))
-              .filter(it => it.p.year === tomorrowParts.year && it.p.month === tomorrowParts.month && it.p.day === tomorrowParts.day)
-              .map(it => ({...it, diff: Math.abs(it.p.hour - 9), ms: Date.parse(it.time)}))
-              .filter(it => Number.isFinite(it.ms))
-              .sort((a, b) => (a.diff - b.diff) || (a.ms - b.ms));
-
-            const pick9 = candidates[0] || null;
-            if (pick9 && pick9.diff <= 1) {
-              row.t9WindKmh = pick9.wind;
-              row.t9GustKmh = pick9.gust;
+            if (pick12h) {
+              row.f12GustKmh = pick12h.gust;
             }
           }
 
@@ -1067,7 +979,7 @@ async function bomForecastHourly(geohash){
     allRows = results;
     render();
 
-    const hadAnySuccess = results.some(r => r.windKmh != null || r.gustKmh != null);
+    const hadAnySuccess = results.some(r => r.gustKmh != null || r.f12GustKmh != null);
     if (!hadAnySuccess){
       setStatus('No data loaded. If this persists, BOM may be temporarily blocking requests. Try again in 1–2 minutes.');
     } else {
@@ -1110,9 +1022,9 @@ async function bomForecastHourly(geohash){
       assert('timeAgo just now', timeAgo(new Date().toISOString()) === 'just now');
 
       allRows = [
-        {state:'SA', name:'A', loaded:true, severity:'danger', windKmh:55, gustKmh:60, stationName:'X'},
-        {state:'SA', name:'B', loaded:true, severity:'warning', windKmh:45, gustKmh:48, stationName:'Y'},
-        {state:'SA', name:'C', loaded:true, severity:'ok', windKmh:10, gustKmh:null, stationName:null},
+        {state:'SA', name:'A', loaded:true, severity:'danger', gustKmh:60, f12GustKmh:55, stationName:'X'},
+        {state:'SA', name:'B', loaded:true, severity:'warning', gustKmh:48, f12GustKmh:35, stationName:'Y'},
+        {state:'SA', name:'C', loaded:true, severity:'ok', gustKmh:10, f12GustKmh:null, stationName:null},
       ];
       els.stateFilter.value = 'SA';
       els.textFilter.value = '';
@@ -1130,7 +1042,7 @@ async function bomForecastHourly(geohash){
       assert('both toggles same as warning', filteredRows().length === 2);
 
       showWarningParks = false; showDangerParks = false;
-      sortKey = 'windKmh'; sortDir = 'desc';
+      sortKey = 'gustKmh'; sortDir = 'desc';
       assert('sort numeric desc', filteredRows().map(r => r.name).join('') === 'ABC');
 
     } finally {
