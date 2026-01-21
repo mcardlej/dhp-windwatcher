@@ -204,7 +204,7 @@
       <table>
         <thead>
           <tr>
-            <th class="sortable" data-key="name">Park <span class="sort-ind" data-ind="name"></span></th>
+            <th class="sortable" data-key="name">Park Name (State) <span class="sort-ind" data-ind="name"></span></th>
             <th class="sortable right current-col" data-key="gustKmh">Current <span class="sort-ind" data-ind="gustKmh"></span></th>
             <th class="right hour-head" data-hour-idx="0"></th>
             <th class="right hour-head" data-hour-idx="1"></th>
@@ -237,8 +237,8 @@
       <div class="modal-body">
         <p>
           Uses Bureau of Meteorology (BOM) data (<span class="nowrap">api.weather.bom.gov.au</span>). Gusts are in km/h.
-          <span style="color:var(--warning); font-weight:800">Warning</span> above <span id="warningValue">40</span> and
-          <span style="color:var(--danger); font-weight:800">Danger</span> above <span id="dangerValue">50</span>.
+          <span style="color:var(--warning); font-weight:800">Warning</span> <span id="warningValue">51</span> and above;
+          <span style="color:var(--danger); font-weight:800">Danger</span> <span id="dangerValue">63</span> and above.
         </p>
         <ul>
           <li><b>Current</b> is the latest observed gust.</li>
@@ -259,8 +259,10 @@
 
   // ===== Config =====
   // Thresholds are km/h. Change these two constants and the whole app updates.
-  const WARNING_KMH = 40;
-  const DANGER_KMH  = 50;
+  const WARNING_KMH = 51;
+  const DANGER_KMH  = 63;
+  const WARNING_TOOLTIP = 'Trees 13m or greater: Advise all park occupants to limit time spent in fall zones with no protection factors';
+  const DANGER_TOOLTIP = 'Trees 6-12m: Advise all park occupants to limit time spent in fall zones with no protection factors. Trees 13m or greater: Create exclusion zone of tree hight +50% for fall zones with no protection factors';
   // ==================
 
   // --- Park list
@@ -544,8 +546,8 @@
 
   function levelFor(v){
     if (v === null || v === undefined || Number.isNaN(v)) return 'none';
-    if (v > DANGER_KMH) return 'danger';
-    if (v > WARNING_KMH) return 'warning';
+    if (v >= DANGER_KMH) return 'danger';
+    if (v >= WARNING_KMH) return 'warning';
     return 'ok';
   }
 
@@ -693,8 +695,8 @@
       `<span class="chip"><b>${total}</b> parks</span>`,
       `<span class="chip"><b>${ok}</b> OK</span>`,
       `<span class="chip"><b>${missing}</b> no gust data</span>`,
-      `<span class="chip"><b style="color:var(--warning)">${warning}</b> warning &gt; ${WARNING_KMH}</span>`,
-      `<span class="chip"><b style="color:var(--danger)">${danger}</b> danger &gt; ${DANGER_KMH}</span>`,
+      `<span class="chip"><b style="color:var(--warning)">${warning}</b> warning &gt;= ${WARNING_KMH}</span>`,
+      `<span class="chip"><b style="color:var(--danger)">${danger}</b> danger &gt;= ${DANGER_KMH}</span>`,
       `<label class="toggle warn ${showWarningParks ? 'active' : ''}" style="margin-left:4px">
          <input id="showWarning" type="checkbox" ${showWarningParks ? 'checked' : ''} />
          <span class="dot"></span>
@@ -709,8 +711,14 @@
   }
 
   function badgeFor(sev){
-    if (sev === 'danger') return `<span class="badge danger">Danger</span>`;
-    if (sev === 'warning') return `<span class="badge warning">Warning</span>`;
+    if (sev === 'danger') {
+      const tip = escapeHtml(DANGER_TOOLTIP);
+      return `<span class="badge danger" title="${tip}" aria-label="${tip}">Danger</span>`;
+    }
+    if (sev === 'warning') {
+      const tip = escapeHtml(WARNING_TOOLTIP);
+      return `<span class="badge warning" title="${tip}" aria-label="${tip}">Warning</span>`;
+    }
     return '';
   }
 
@@ -744,8 +752,8 @@
           <td>
             <div class="row-top">
               <div class="park-name">
-                <span class="park-state">(${escapeHtml(r.state)})</span>
                 <b>${escapeHtml(r.name)}</b>
+                <span class="park-state">(${escapeHtml(r.state)})</span>
                 ${badge}
               </div>
             </div>
@@ -1088,9 +1096,9 @@ async function bomForecastHourly(geohash){
     try {
       assert('threshold order', DANGER_KMH > WARNING_KMH);
       assert('level none', levelFor(null) === 'none');
-      assert('level ok boundary', levelFor(WARNING_KMH) === 'ok');
-      assert('level warning', levelFor(WARNING_KMH + 0.1) === 'warning');
-      assert('level danger', levelFor(DANGER_KMH + 0.1) === 'danger');
+      assert('level ok boundary', levelFor(WARNING_KMH - 0.1) === 'ok');
+      assert('level warning', levelFor(WARNING_KMH) === 'warning');
+      assert('level danger', levelFor(DANGER_KMH) === 'danger');
 
       // timeAgo sanity
       assert('timeAgo just now', timeAgo(new Date().toISOString()) === 'just now');
