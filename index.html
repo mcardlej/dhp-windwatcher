@@ -92,6 +92,11 @@
     tr:last-child td{border-bottom:none;}
     .table-disclaimer{padding:10px 12px; border-top:1px solid var(--line);}
 
+    .empty-cell{text-align:center;}
+    .empty-state{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:28px 12px; min-height:140px; color:var(--muted);}
+    .empty-state svg{width:28px; height:28px; stroke:currentColor;}
+    .empty-state .empty-title{font-weight:700; color:var(--text);}
+
     /* Sortable headers */
     th.sortable{cursor:pointer; user-select:none}
     th.sortable:hover{background:rgba(138,164,214,.15)}
@@ -445,6 +450,7 @@
   const cache = { locations: new Map() };
   const LOC_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12h, matches worker /locations cache
   let allRows = [];
+  const TABLE_COL_COUNT = document.querySelectorAll('thead th').length || 15;
 
   // Sorting (applies after filters). Updated column is intentionally not sortable.
   let sortKey = null; // null = default (State then Park)
@@ -776,6 +782,30 @@
 
   function renderTable(rows){
     const slots = ensureForecastSlots();
+    if (!rows.length) {
+      if (!allRows.length) {
+        els.tbody.innerHTML = '';
+        return;
+      }
+
+      els.tbody.innerHTML = `
+        <tr class="empty-row">
+          <td class="empty-cell" colspan="${TABLE_COL_COUNT}">
+            <div class="empty-state">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="7"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                <line x1="8" y1="8" x2="14" y2="14"></line>
+                <line x1="14" y1="8" x2="8" y2="14"></line>
+              </svg>
+              <div class="empty-title">No parks match the current filters.</div>
+              <div class="small muted">Try adjusting the state, search, or alert filters.</div>
+            </div>
+          </td>
+        </tr>
+      `;
+      return;
+    }
     els.tbody.innerHTML = rows.map(r => {
       const badge = badgeFor(r.severity);
       const updatedText = r.issueTime ? timeAgo(r.issueTime) : '—';
