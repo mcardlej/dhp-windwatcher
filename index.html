@@ -97,6 +97,14 @@
     .empty-state svg{width:28px; height:28px; stroke:currentColor;}
     .empty-state .empty-title{font-weight:700; color:var(--text);}
 
+    .loading-state{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:28px 12px; min-height:140px; color:var(--muted);}
+    .loading-state .loading-title{font-weight:700; color:var(--text);}
+    .spinner{width:28px; height:28px; border:3px solid var(--line); border-top-color:var(--text); border-radius:50%; animation:spin 1s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    @media (prefers-reduced-motion: reduce){
+      .spinner{animation:none;}
+    }
+
     /* Sortable headers */
     th.sortable{cursor:pointer; user-select:none}
     th.sortable:hover{background:rgba(138,164,214,.15)}
@@ -450,6 +458,7 @@
   const cache = { locations: new Map() };
   const LOC_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12h, matches worker /locations cache
   let allRows = [];
+  let isLoading = false;
   const TABLE_COL_COUNT = document.querySelectorAll('thead th').length || 15;
 
   // Sorting (applies after filters). Updated column is intentionally not sortable.
@@ -783,6 +792,20 @@
   function renderTable(rows){
     const slots = ensureForecastSlots();
     if (!rows.length) {
+      if (isLoading) {
+        els.tbody.innerHTML = `
+          <tr class="loading-row">
+            <td class="empty-cell" colspan="${TABLE_COL_COUNT}">
+              <div class="loading-state" role="status" aria-live="polite">
+                <div class="spinner" aria-hidden="true"></div>
+                <div class="loading-title">Loading parks...</div>
+                <div class="small muted">Fetching the latest BOM data.</div>
+              </div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
       if (!allRows.length) {
         els.tbody.innerHTML = '';
         return;
@@ -1003,6 +1026,8 @@ async function bomForecastHourly(geohash){
     forecastSlots = buildForecastSlots();
     updateHourHeaders();
 
+    isLoading = true;
+    render();
     setStatus(`Loading ${parks.length} parks…`);
 
     const CONCURRENCY = 6;
@@ -1130,8 +1155,8 @@ async function bomForecastHourly(geohash){
     }
 
     await Promise.all(Array.from({length: Math.min(CONCURRENCY, queue.length)}, worker));
-
     allRows = results;
+    isLoading = false;
     render();
 
     const hadAnySuccess = results.some(r => {
