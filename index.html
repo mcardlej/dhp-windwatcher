@@ -157,6 +157,8 @@
     .dangerCell{color:var(--danger); font-weight:800;}
     .warningCell{color:var(--warning); font-weight:800;}
     .okCell{color:var(--ok); font-weight:700;}
+    .speed-value{display:inline-flex; align-items:center; gap:4px;}
+    .speed-icon{width:14px; height:14px; flex:0 0 auto;}
 
     /* Info button + modal */
     .icon-btn{display:inline-flex; align-items:center; justify-content:center; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px; font-size:14px; font-weight:600; cursor:pointer; color:var(--text)}
@@ -599,6 +601,16 @@
     return 'ok';
   }
 
+  function speedIconForLevel(level){
+    if (level === 'warning') {
+      return '<svg class="speed-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
+    }
+    if (level === 'danger') {
+      return '<svg class="speed-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
+    }
+    return '';
+  }
+
   function rowLevel(row){
     // Overall severity is the worst level across gust columns.
     const vals = [row.gustKmh];
@@ -627,6 +639,13 @@
     if (lvl === 'warning') return 'warningCell';
     if (lvl === 'ok') return 'okCell';
     return '';
+  }
+
+  function renderSpeedValue(v){
+    const text = formatKmh(v);
+    const icon = speedIconForLevel(levelFor(v));
+    if (!icon) return text;
+    return `<span class="speed-value">${icon}<span class="speed-text">${text}</span></span>`;
   }
 
   function escapeHtml(s){
@@ -796,7 +815,7 @@
         const v = (r.hourlyGusts && typeof r.hourlyGusts.get === 'function')
           ? r.hourlyGusts.get(slot.ms)
           : null;
-        return `<td class="right hour-cell ${cellClassFor(v)}">${formatKmh(v)}</td>`;
+        return `<td class="right hour-cell ${cellClassFor(v)}">${renderSpeedValue(v)}</td>`;
       }).join('');
 
       return `
@@ -811,7 +830,7 @@
             ${errorLine}
             ${stationLine}
           </td>
-          <td class="right current-col ${cellClassFor(r.gustKmh)}">${formatKmh(r.gustKmh)}</td>
+          <td class="right current-col ${cellClassFor(r.gustKmh)}">${renderSpeedValue(r.gustKmh)}</td>
           ${hourCells}
           <td class="right updated-col">${updatedCol}</td>
         </tr>
