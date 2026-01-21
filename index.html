@@ -1025,7 +1025,7 @@
       const currentVal = r.gustKmh;
       const currentInner = isAllMode
         ? (() => {
-            const tip = escapeHtml(formatHourLabelMs(Date.now(), parkTz));
+            const tip = escapeHtml(`Park time: ${formatHourLabelMs(Date.now(), parkTz)}`);
             return `<span class="cell-tooltip" data-tooltip="${tip}" aria-label="${tip}" tabindex="0">${formatKmh(currentVal)}</span>`;
           })()
         : formatKmh(currentVal);
@@ -1035,7 +1035,7 @@
           : null;
         const inner = isAllMode
           ? (() => {
-              const tip = escapeHtml(formatHourLabelMs(slot.ms, parkTz));
+              const tip = escapeHtml(`Park time: ${formatHourLabelMs(slot.ms, parkTz)}`);
               return `<span class="cell-tooltip" data-tooltip="${tip}" aria-label="${tip}" tabindex="0">${formatKmh(v)}</span>`;
             })()
           : formatKmh(v);
