@@ -85,7 +85,7 @@
     .toggle.danger input:checked + .dot::after{background:#fff}
     .toggle.danger.active{border-color:rgba(217,45,32,.55); color:var(--danger)}
 
-    .card{background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden;}
+    .card{background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:auto;}
     table{width:100%; border-collapse:collapse;}
     th,td{padding:10px 12px; border-bottom:1px solid var(--line); font-size:13px; vertical-align:top}
     th{color:var(--muted); text-align:left; font-weight:600;}
@@ -104,6 +104,10 @@
     .badge{display:inline-flex; gap:6px; align-items:center; font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); white-space:nowrap; flex:0 0 auto}
     .badge.warning{border-color:rgba(217,119,6,.55); color:var(--warning)}
     .badge.danger{border-color:rgba(217,45,32,.55); color:var(--danger)}
+
+    .hour-head,.hour-cell{min-width:64px;}
+    .current-col{min-width:88px;}
+    .updated-col{min-width:88px;}
 
     .dangerCell{color:var(--danger); font-weight:800;}
     .warningCell{color:var(--warning); font-weight:800;}
@@ -200,10 +204,21 @@
       <table>
         <thead>
           <tr>
-            <th class="sortable" data-key="name" style="width:46%">Park <span class="sort-ind" data-ind="name"></span></th>
-            <th class="sortable right" data-key="gustKmh" style="width:18%">Current gust <span class="sort-ind" data-ind="gustKmh"></span></th>
-            <th class="sortable right" data-key="f12GustKmh" style="width:18%">+12h gust <span class="sort-ind" data-ind="f12GustKmh"></span></th>
-            <th style="width:18%">Updated</th>
+            <th class="sortable" data-key="name">Park <span class="sort-ind" data-ind="name"></span></th>
+            <th class="sortable right current-col" data-key="gustKmh">Current <span class="sort-ind" data-ind="gustKmh"></span></th>
+            <th class="right hour-head" data-hour-idx="0"></th>
+            <th class="right hour-head" data-hour-idx="1"></th>
+            <th class="right hour-head" data-hour-idx="2"></th>
+            <th class="right hour-head" data-hour-idx="3"></th>
+            <th class="right hour-head" data-hour-idx="4"></th>
+            <th class="right hour-head" data-hour-idx="5"></th>
+            <th class="right hour-head" data-hour-idx="6"></th>
+            <th class="right hour-head" data-hour-idx="7"></th>
+            <th class="right hour-head" data-hour-idx="8"></th>
+            <th class="right hour-head" data-hour-idx="9"></th>
+            <th class="right hour-head" data-hour-idx="10"></th>
+            <th class="right hour-head" data-hour-idx="11"></th>
+            <th class="right updated-col">Updated</th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
@@ -226,8 +241,8 @@
           <span style="color:var(--danger); font-weight:800">Danger</span> above <span id="dangerValue">50</span>.
         </p>
         <ul>
-          <li><b>Current gust</b> is the latest observed gust.</li>
-          <li><b>+12h gust</b> comes from BOM’s hourly forecast feed (gusts are shown when provided by BOM; otherwise they appear as —).</li>
+          <li><b>Current</b> is the latest observed gust.</li>
+          <li><b>Hourly columns</b> show the next 12 hours starting from the next full hour, using BOM’s hourly gust forecasts (— when unavailable).</li>
           <li>Some parks may show <b>No BOM match</b> if the location search doesn’t find a good hit. Fix by tweaking that park’s <b>searchTerm</b> in the code.</li>
           <li>If BOM temporarily blocks requests, wait a minute and refresh. The loader is deliberately throttled.</li>
         </ul>
@@ -386,11 +401,12 @@
   let sortDir = 'asc';
   const SORT_KEY_ALIASES = {
     windKmh: 'gustKmh',
-    f3WindKmh: 'f12GustKmh',
-    t9WindKmh: 'f12GustKmh',
+    f3WindKmh: null,
+    t9WindKmh: null,
+    f12GustKmh: null,
     state: null,
   };
-  const SORT_KEYS = new Set(['name', 'gustKmh', 'f12GustKmh']);
+  const SORT_KEYS = new Set(['name', 'gustKmh']);
 
   // Filter toggles (live in the stats row)
   let showWarningParks = false;
@@ -498,6 +514,34 @@
     return `${Math.round(v)} km/h`;
   }
 
+  const HOUR_MS = 60 * 60 * 1000;
+  let forecastSlots = [];
+
+  function formatHourLabel(d){
+    let h = d.getHours();
+    const suffix = h >= 12 ? 'pm' : 'am';
+    h = h % 12;
+    if (h === 0) h = 12;
+    return `${h}${suffix}`;
+  }
+
+  function buildForecastSlots(base = new Date()){
+    const start = new Date(base);
+    start.setMinutes(0, 0, 0);
+    if (start.getTime() <= base.getTime()) start.setHours(start.getHours() + 1);
+    return Array.from({length: 12}, (_, i) => {
+      const d = new Date(start.getTime() + i * HOUR_MS);
+      return { ms: d.getTime(), label: formatHourLabel(d) };
+    });
+  }
+
+  function ensureForecastSlots(){
+    if (!Array.isArray(forecastSlots) || forecastSlots.length !== 12) {
+      forecastSlots = buildForecastSlots();
+    }
+    return forecastSlots;
+  }
+
   function levelFor(v){
     if (v === null || v === undefined || Number.isNaN(v)) return 'none';
     if (v > DANGER_KMH) return 'danger';
@@ -507,10 +551,10 @@
 
   function rowLevel(row){
     // Overall severity is the worst level across gust columns.
-    const vals = [
-      row.gustKmh,
-      row.f12GustKmh,
-    ];
+    const vals = [row.gustKmh];
+    if (row.hourlyGusts && typeof row.hourlyGusts.values === 'function') {
+      for (const v of row.hourlyGusts.values()) vals.push(v);
+    }
 
     let sawOk = false;
     let sawWarning = false;
@@ -549,7 +593,6 @@
       case 'name': return row.name;
       case 'state': return row.state;
       case 'gustKmh': return row.gustKmh;
-      case 'f12GustKmh': return row.f12GustKmh;
       default: return null;
     }
   }
@@ -610,6 +653,16 @@
     });
   }
 
+  function updateHourHeaders(){
+    const slots = ensureForecastSlots();
+    const heads = document.querySelectorAll('th.hour-head');
+    heads.forEach((th, idx) => {
+      const slot = slots[idx];
+      if (!slot) { th.textContent = ''; return; }
+      th.textContent = slot.label;
+    });
+  }
+
   function filteredRows(){
     const st = els.stateFilter.value;
     const q = els.textFilter.value.trim().toLowerCase();
@@ -662,6 +715,7 @@
   }
 
   function renderTable(rows){
+    const slots = ensureForecastSlots();
     els.tbody.innerHTML = rows.map(r => {
       const badge = badgeFor(r.severity);
       const updatedText = r.issueTime ? timeAgo(r.issueTime) : '—';
@@ -678,22 +732,29 @@
         ? `<span class="muted">—</span>`
         : `<span class="small">${escapeHtml(updatedText)}</span>`;
 
+      const hourCells = slots.map(slot => {
+        const v = (r.hourlyGusts && typeof r.hourlyGusts.get === 'function')
+          ? r.hourlyGusts.get(slot.ms)
+          : null;
+        return `<td class="right hour-cell ${cellClassFor(v)}">${formatKmh(v)}</td>`;
+      }).join('');
+
       return `
         <tr>
           <td>
             <div class="row-top">
               <div class="park-name">
-                <b>${escapeHtml(r.name)}</b>
                 <span class="park-state">(${escapeHtml(r.state)})</span>
+                <b>${escapeHtml(r.name)}</b>
                 ${badge}
               </div>
             </div>
             ${errorLine}
             ${stationLine}
           </td>
-          <td class="right ${cellClassFor(r.gustKmh)}">${formatKmh(r.gustKmh)}</td>
-          <td class="right ${cellClassFor(r.f12GustKmh)}">${formatKmh(r.f12GustKmh)}</td>
-          <td class="right">${updatedCol}</td>
+          <td class="right current-col ${cellClassFor(r.gustKmh)}">${formatKmh(r.gustKmh)}</td>
+          ${hourCells}
+          <td class="right updated-col">${updatedCol}</td>
         </tr>
       `;
     }).join('');
@@ -702,6 +763,7 @@
   function render(){
     const rows = filteredRows();
     renderStats(rows);
+    updateHourHeaders();
     renderTable(rows);
     updateSortIndicators();
   }
@@ -849,6 +911,9 @@ async function bomForecastHourly(geohash){
     const st = els.stateFilter.value;
     const parks = (st === 'ALL') ? PARKS : PARKS.filter(p => p.state === st);
 
+    forecastSlots = buildForecastSlots();
+    updateHourHeaders();
+
     setStatus(`Loading ${parks.length} parks…`);
 
     const CONCURRENCY = 6;
@@ -880,7 +945,7 @@ async function bomForecastHourly(geohash){
           ...p,
           loaded: false,
           gustKmh: null,
-          f12GustKmh: null,
+          hourlyGusts: new Map(),
           stationName: null,
           stationId: null,
           issueTime: null,
@@ -942,19 +1007,20 @@ async function bomForecastHourly(geohash){
               })
               .filter(it => it.time);
 
-            // +12h forecast = first forecast at/after now + 12 hours
-            const now = new Date();
-            const target12h = new Date(now.getTime() + 12 * 60 * 60 * 1000);
-            const target12hMs = target12h.getTime();
+            const slots = ensureForecastSlots();
+            const hourlyByHour = new Map();
+            slots.forEach(slot => hourlyByHour.set(slot.ms, null));
 
-            const pick12h = items
-              .map(it => ({...it, ms: Date.parse(it.time)}))
-              .filter(it => Number.isFinite(it.ms) && it.ms >= target12hMs)
-              .sort((a, b) => a.ms - b.ms)[0] || null;
+            items.forEach(it => {
+              const ms = Date.parse(it.time);
+              if (!Number.isFinite(ms)) return;
+              const d = new Date(ms);
+              d.setMinutes(0, 0, 0);
+              const hourMs = d.getTime();
+              if (hourlyByHour.has(hourMs)) hourlyByHour.set(hourMs, it.gust);
+            });
 
-            if (pick12h) {
-              row.f12GustKmh = pick12h.gust;
-            }
+            row.hourlyGusts = hourlyByHour;
           }
 
           row.severity = rowLevel(row);
@@ -979,7 +1045,15 @@ async function bomForecastHourly(geohash){
     allRows = results;
     render();
 
-    const hadAnySuccess = results.some(r => r.gustKmh != null || r.f12GustKmh != null);
+    const hadAnySuccess = results.some(r => {
+      if (r.gustKmh != null) return true;
+      if (r.hourlyGusts && typeof r.hourlyGusts.values === 'function') {
+        for (const v of r.hourlyGusts.values()) {
+          if (v != null && !Number.isNaN(v)) return true;
+        }
+      }
+      return false;
+    });
     if (!hadAnySuccess){
       setStatus('No data loaded. If this persists, BOM may be temporarily blocking requests. Try again in 1–2 minutes.');
     } else {
@@ -1022,9 +1096,9 @@ async function bomForecastHourly(geohash){
       assert('timeAgo just now', timeAgo(new Date().toISOString()) === 'just now');
 
       allRows = [
-        {state:'SA', name:'A', loaded:true, severity:'danger', gustKmh:60, f12GustKmh:55, stationName:'X'},
-        {state:'SA', name:'B', loaded:true, severity:'warning', gustKmh:48, f12GustKmh:35, stationName:'Y'},
-        {state:'SA', name:'C', loaded:true, severity:'ok', gustKmh:10, f12GustKmh:null, stationName:null},
+        {state:'SA', name:'A', loaded:true, severity:'danger', gustKmh:60, hourlyGusts:new Map(), stationName:'X'},
+        {state:'SA', name:'B', loaded:true, severity:'warning', gustKmh:48, hourlyGusts:new Map(), stationName:'Y'},
+        {state:'SA', name:'C', loaded:true, severity:'ok', gustKmh:10, hourlyGusts:new Map(), stationName:null},
       ];
       els.stateFilter.value = 'SA';
       els.textFilter.value = '';
