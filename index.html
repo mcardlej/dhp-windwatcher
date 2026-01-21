@@ -342,7 +342,9 @@
     { name: "Horseshoe Lagoon", state: "NSW", searchTerm: "Horseshoe Lagoon" },
     { name: "Jindabyne", state: "NSW", searchTerm: "Jindabyne" },
     { name: "Lake Hume, NSW", state: "NSW", searchTerm: "Lake Hume" },
-    { name: "Lane Cove", state: "NSW", searchTerm: "Sydney" },
+    // "Sydney" often maps to Observatory Hill, whose observations frequently report gust as null.
+    // "Mascot" maps to Sydney Airport, which reliably provides gust observations + hourly gust forecasts.
+    { name: "Lane Cove", state: "NSW", searchTerm: "Mascot" },
     { name: "Maidens Inn, Moama", state: "NSW", searchTerm: "Moama" },
     { name: "Moama Waters", state: "NSW", searchTerm: "Moama" },
     { name: "Moama West", state: "NSW", searchTerm: "Moama" },
