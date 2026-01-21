@@ -89,6 +89,18 @@
     .toggle.danger input:checked + .dot::after{background:#fff}
     .toggle.danger.active{border-color:rgba(217,45,32,.55); color:var(--danger)}
 
+    /* Switch (Park time / My time) */
+    .switch{display:inline-flex; align-items:center; gap:10px; padding:8px 12px; background:var(--card); border:1px solid var(--line); border-radius:999px; font-size:12px; color:var(--muted); user-select:none}
+    .switch input{position:absolute; opacity:0; width:1px; height:1px; margin:0; padding:0; border:0;}
+    .switch .track{position:relative; width:36px; height:20px; border-radius:999px; background:var(--line); flex:0 0 auto;}
+    .switch .thumb{position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:999px; background:var(--card); box-shadow:0 1px 2px rgba(0,0,0,.18); transition:transform .18s ease;}
+    .switch input:checked + .track{background:rgba(15,118,110,.55);}
+    .switch input:checked + .track .thumb{transform:translateX(16px);}
+    .switch .label-on{color:var(--text); font-weight:700;}
+    .switch .label-off{color:var(--muted);}
+    .switch.off .label-on{color:var(--muted); font-weight:600;}
+    .switch.off .label-off{color:var(--text); font-weight:700;}
+
     .card{background:var(--card); border:1px solid var(--line); border-radius:16px; overflow-x:auto; overflow-y:hidden;}
     table{width:100%; border-collapse:collapse;}
     th,td{padding:10px 12px; border-bottom:1px solid var(--line); font-size:13px; vertical-align:top}
@@ -262,6 +274,13 @@
 
         <label class="small">Search</label>
         <input id="textFilter" placeholder="Filter by park name…" />
+
+        <label id="timeModeWrap" class="switch" title="Park Time shows hours in the selected state timezone. My Time shows hours in your browser timezone.">
+          <span class="label-on">Park time</span>
+          <span class="label-off">My time</span>
+          <input id="parkTimeToggle" type="checkbox" checked aria-label="Toggle Park Time vs My Time" />
+          <span class="track" aria-hidden="true"><span class="thumb"></span></span>
+        </label>
       </div>
 
       <div class="controls-right">
@@ -488,6 +507,8 @@
     infoModal: document.getElementById('infoModal'),
     infoClose: document.getElementById('infoClose'),
     darkModeToggle: document.getElementById('darkModeToggle'),
+    parkTimeToggle: document.getElementById('parkTimeToggle'),
+    timeModeWrap: document.getElementById('timeModeWrap'),
   };
 
   const cache = { locations: new Map() };
@@ -514,6 +535,8 @@
   let showDangerParks = false;
 
   let darkModeEnabled = false;
+  // "On" = Park time (park/local timezone). "Off" = My time (viewer/browser timezone).
+  let parkTimeEnabled = true;
 
   // --- Persist UI prefs (filters + sort) ---
   // Uses localStorage when available, falls back to cookies.
@@ -556,6 +579,7 @@
       showWarning: !!showWarningParks,
       showDanger: !!showDangerParks,
       darkMode: !!darkModeEnabled,
+      parkTime: !!parkTimeEnabled,
       sortKey: sortKey,
       sortDir: sortDir,
     };
@@ -587,6 +611,7 @@
     if (typeof p.showWarning === 'boolean') showWarningParks = p.showWarning;
     if (typeof p.showDanger === 'boolean') showDangerParks = p.showDanger;
     if (typeof p.darkMode === 'boolean') darkModeEnabled = p.darkMode;
+    if (typeof p.parkTime === 'boolean') parkTimeEnabled = p.parkTime;
 
     // Sort
     if (p.sortKey === null) {
@@ -604,6 +629,13 @@
     if (darkModeEnabled) document.documentElement.setAttribute('data-theme', 'dark');
     else document.documentElement.removeAttribute('data-theme');
     if (els.darkModeToggle) els.darkModeToggle.checked = !!darkModeEnabled;
+  }
+
+  function applyTimeModeUi(){
+    if (els.parkTimeToggle) els.parkTimeToggle.checked = !!parkTimeEnabled;
+    if (els.timeModeWrap) {
+      els.timeModeWrap.classList.toggle('off', !parkTimeEnabled);
+    }
   }
 
   function setStatus(msg){
@@ -642,6 +674,17 @@
   }
 
   function getDisplayTimeZone(){
+    // My Time: always use viewer/browser timezone.
+    if (!parkTimeEnabled) {
+      try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      } catch {
+        return 'UTC';
+      }
+    }
+
+    // Park Time: when a specific state is selected, show that state's local time.
+    // When ALL is selected, there isn't a single "park timezone", so fall back to viewer timezone.
     const st = els.stateFilter?.value || 'ALL';
     const tz = (st !== 'ALL') ? timeZoneForState(st) : null;
     if (tz) return tz;
@@ -1370,6 +1413,19 @@ async function bomForecastHourly(geohash){
     });
   }
 
+  if (els.parkTimeToggle) {
+    els.parkTimeToggle.addEventListener('change', (e) => {
+      parkTimeEnabled = !!e.target.checked;
+      applyTimeModeUi();
+      savePrefs();
+      // Rebuild headers using the selected time mode.
+      forecastSlots = buildForecastSlots(Date.now(), getDisplayTimeZone());
+      forecastSlotsTz = getDisplayTimeZone();
+      updateHourHeaders();
+      render();
+    });
+  }
+
   // Sortable headers (event delegation). Updated column is excluded.
   document.querySelector('thead').addEventListener('click', (e) => {
     const th = e.target.closest('th[data-key]');
@@ -1428,6 +1484,7 @@ async function bomForecastHourly(geohash){
 
     applyPrefs();
     applyTheme();
+    applyTimeModeUi();
     runSelfTests();
     render();
     loadData();
