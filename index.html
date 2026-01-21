@@ -13,6 +13,8 @@
       --text:#111827;
       --line:#d7dde7;
       --danger:#d92d20;
+      --dangerFlashBg: rgba(217,45,32,.18);
+      --dangerFlashShadow: rgba(217,45,32,.35);
       --warning:#d97706;
       --ok:#0f766e;
       --chip:#f0f3f9;
@@ -25,6 +27,8 @@
       --text:#f3f4f6;
       --line:#243047;
       --danger:#f97066;
+      --dangerFlashBg: rgba(249,112,102,.22);
+      --dangerFlashShadow: rgba(249,112,102,.40);
       --warning:#fbbf24;
       --ok:#2dd4bf;
       --chip:#0f172a;
@@ -170,6 +174,26 @@
     .dangerCell{color:var(--danger); font-weight:800;}
     .warningCell{color:var(--warning); font-weight:800;}
     .okCell{color:var(--ok); font-weight:700;}
+
+    .dangerFlash{
+      animation: dangerFlash 1s ease-in-out infinite;
+      background-clip: padding-box;
+    }
+    @keyframes dangerFlash{
+      0%, 100%{
+        background-color: transparent;
+        box-shadow: inset 0 0 0 0 transparent;
+      }
+      50%{
+        background-color: var(--dangerFlashBg);
+        box-shadow:
+          inset 0 0 0 9999px var(--dangerFlashBg),
+          0 0 0 2px var(--dangerFlashShadow);
+      }
+    }
+    @media (prefers-reduced-motion: reduce){
+      .dangerFlash{animation:none; background-color:var(--dangerFlashBg); box-shadow:none;}
+    }
 
     /* Info button + modal */
     .icon-btn{display:inline-flex; align-items:center; justify-content:center; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px; font-size:14px; font-weight:600; cursor:pointer; color:var(--text)}
@@ -639,7 +663,7 @@
 
   function cellClassFor(v){
     const lvl = levelFor(v);
-    if (lvl === 'danger') return 'dangerCell';
+    if (lvl === 'danger') return 'dangerCell dangerFlash';
     if (lvl === 'warning') return 'warningCell';
     if (lvl === 'ok') return 'okCell';
     return '';
