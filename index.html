@@ -96,14 +96,58 @@
     th.sortable:hover{background:rgba(138,164,214,.15)}
     .sort-ind{display:inline-block; margin-left:6px; font-size:11px; color:var(--muted)}
 
-    /* Keep park name + state + badge on one line */
+    /* Keep park name + badge on one line */
     .row-top{display:block;}
     .park-name{display:flex; align-items:center; gap:8px; min-width:0;}
-    .park-name b{flex:1 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-    .park-state{flex:0 0 auto; color:var(--muted); font-weight:600; white-space:nowrap;}
+    .park-name b{flex:0 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
     .badge{display:inline-flex; gap:6px; align-items:center; font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); white-space:nowrap; flex:0 0 auto}
     .badge.warning{border-color:rgba(217,119,6,.55); color:var(--warning)}
     .badge.danger{border-color:rgba(217,45,32,.55); color:var(--danger)}
+    .badge[data-tooltip]{position:relative; cursor:help;}
+    .badge[data-tooltip]::after{
+      content: attr(data-tooltip);
+      position:absolute;
+      left:0;
+      top:calc(100% + 8px);
+      background:var(--card);
+      color:var(--text);
+      border:1px solid var(--line);
+      border-radius:10px;
+      padding:8px 10px;
+      font-size:12px;
+      line-height:1.35;
+      white-space:normal;
+      width:max-content;
+      max-width:320px;
+      box-shadow:0 10px 30px rgba(0,0,0,.18);
+      opacity:0;
+      pointer-events:none;
+      transform:translateY(4px);
+      transition:opacity .15s ease, transform .15s ease;
+      z-index:20;
+      text-align:left;
+    }
+    .badge[data-tooltip]::before{
+      content:"";
+      position:absolute;
+      left:12px;
+      top:100%;
+      border-width:0 6px 6px 6px;
+      border-style:solid;
+      border-color:transparent transparent var(--card) transparent;
+      opacity:0;
+      pointer-events:none;
+      transform:translateY(4px);
+      transition:opacity .15s ease, transform .15s ease;
+      z-index:19;
+    }
+    .badge[data-tooltip]:hover::after,
+    .badge[data-tooltip]:focus-visible::after,
+    .badge[data-tooltip]:hover::before,
+    .badge[data-tooltip]:focus-visible::before{
+      opacity:1;
+      transform:translateY(0);
+    }
 
     .hour-head,.hour-cell{min-width:64px;}
     .current-col{min-width:88px;}
@@ -204,7 +248,7 @@
       <table>
         <thead>
           <tr>
-            <th class="sortable" data-key="name">Park Name (State) <span class="sort-ind" data-ind="name"></span></th>
+            <th class="sortable" data-key="name">Park Name <span class="sort-ind" data-ind="name"></span></th>
             <th class="sortable right current-col" data-key="gustKmh">Current <span class="sort-ind" data-ind="gustKmh"></span></th>
             <th class="right hour-head" data-hour-idx="0"></th>
             <th class="right hour-head" data-hour-idx="1"></th>
@@ -672,6 +716,10 @@
     const filterOn = showWarningParks || showDangerParks;
 
     const rows = allRows
+      .map(r => {
+        if (r.loaded) r.severity = rowLevel(r);
+        return r;
+      })
       .filter(r => (st === 'ALL' ? true : r.state === st))
       .filter(r => (q ? r.name.toLowerCase().includes(q) : true))
       .filter(r => {
@@ -713,11 +761,11 @@
   function badgeFor(sev){
     if (sev === 'danger') {
       const tip = escapeHtml(DANGER_TOOLTIP);
-      return `<span class="badge danger" title="${tip}" aria-label="${tip}">Danger</span>`;
+      return `<span class="badge danger" data-tooltip="${tip}" aria-label="${tip}" tabindex="0">Danger</span>`;
     }
     if (sev === 'warning') {
       const tip = escapeHtml(WARNING_TOOLTIP);
-      return `<span class="badge warning" title="${tip}" aria-label="${tip}">Warning</span>`;
+      return `<span class="badge warning" data-tooltip="${tip}" aria-label="${tip}" tabindex="0">Warning</span>`;
     }
     return '';
   }
@@ -753,7 +801,6 @@
             <div class="row-top">
               <div class="park-name">
                 <b>${escapeHtml(r.name)}</b>
-                <span class="park-state">(${escapeHtml(r.state)})</span>
                 ${badge}
               </div>
             </div>
