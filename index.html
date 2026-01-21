@@ -99,7 +99,8 @@
     /* Keep park name + state + badge on one line */
     .row-top{display:block;}
     .park-name{display:flex; align-items:center; gap:8px; min-width:0;}
-    .park-name b{flex:1 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .park-title{display:inline-flex; align-items:center; gap:6px; min-width:0; flex:0 1 auto;}
+    .park-title b{flex:0 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
     .park-state{flex:0 0 auto; color:var(--muted); font-weight:600; white-space:nowrap;}
     .badge{display:inline-flex; gap:6px; align-items:center; font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); white-space:nowrap; flex:0 0 auto}
     .badge.warning{border-color:rgba(217,119,6,.55); color:var(--warning)}
@@ -237,8 +238,8 @@
       <div class="modal-body">
         <p>
           Uses Bureau of Meteorology (BOM) data (<span class="nowrap">api.weather.bom.gov.au</span>). Gusts are in km/h.
-          <span style="color:var(--warning); font-weight:800">Warning</span> above <span id="warningValue">40</span> and
-          <span style="color:var(--danger); font-weight:800">Danger</span> above <span id="dangerValue">50</span>.
+          <span style="color:var(--warning); font-weight:800">Warning</span> at or above <span id="warningValue">51</span> and
+          <span style="color:var(--danger); font-weight:800">Danger</span> at or above <span id="dangerValue">63</span>.
         </p>
         <ul>
           <li><b>Current</b> is the latest observed gust.</li>
@@ -259,8 +260,10 @@
 
   // ===== Config =====
   // Thresholds are km/h. Change these two constants and the whole app updates.
-  const WARNING_KMH = 40;
-  const DANGER_KMH  = 50;
+  const WARNING_KMH = 51;
+  const DANGER_KMH  = 63;
+  const WARNING_TOOLTIP = 'Trees 13m or greater: Advise all park occupants to limit time spent in fall zones with no protection factors';
+  const DANGER_TOOLTIP = 'Trees 6-12m: Advise all park occupants to limit time spent in fall zones with no protection factors. Trees 13m or greater: Create exclusion zone of tree hight +50% for fall zones with no protection factors';
   // ==================
 
   // --- Park list
@@ -542,10 +545,17 @@
     return forecastSlots;
   }
 
+  function tooltipForValue(v){
+    const lvl = levelFor(v);
+    if (lvl === 'warning') return WARNING_TOOLTIP;
+    if (lvl === 'danger') return DANGER_TOOLTIP;
+    return '';
+  }
+
   function levelFor(v){
     if (v === null || v === undefined || Number.isNaN(v)) return 'none';
-    if (v > DANGER_KMH) return 'danger';
-    if (v > WARNING_KMH) return 'warning';
+    if (v >= DANGER_KMH) return 'danger';
+    if (v >= WARNING_KMH) return 'warning';
     return 'ok';
   }
 
@@ -693,8 +703,8 @@
       `<span class="chip"><b>${total}</b> parks</span>`,
       `<span class="chip"><b>${ok}</b> OK</span>`,
       `<span class="chip"><b>${missing}</b> no gust data</span>`,
-      `<span class="chip"><b style="color:var(--warning)">${warning}</b> warning &gt; ${WARNING_KMH}</span>`,
-      `<span class="chip"><b style="color:var(--danger)">${danger}</b> danger &gt; ${DANGER_KMH}</span>`,
+      `<span class="chip"><b style="color:var(--warning)">${warning}</b> warning &gt;= ${WARNING_KMH}</span>`,
+      `<span class="chip"><b style="color:var(--danger)">${danger}</b> danger &gt;= ${DANGER_KMH}</span>`,
       `<label class="toggle warn ${showWarningParks ? 'active' : ''}" style="margin-left:4px">
          <input id="showWarning" type="checkbox" ${showWarningParks ? 'checked' : ''} />
          <span class="dot"></span>
@@ -736,23 +746,30 @@
         const v = (r.hourlyGusts && typeof r.hourlyGusts.get === 'function')
           ? r.hourlyGusts.get(slot.ms)
           : null;
-        return `<td class="right hour-cell ${cellClassFor(v)}">${formatKmh(v)}</td>`;
+        const tooltip = tooltipForValue(v);
+        const tooltipAttr = tooltip ? ` title="${escapeHtml(tooltip)}"` : '';
+        return `<td class="right hour-cell ${cellClassFor(v)}"${tooltipAttr}>${formatKmh(v)}</td>`;
       }).join('');
+
+      const currentTooltip = tooltipForValue(r.gustKmh);
+      const currentTooltipAttr = currentTooltip ? ` title="${escapeHtml(currentTooltip)}"` : '';
 
       return `
         <tr>
           <td>
             <div class="row-top">
               <div class="park-name">
-                <span class="park-state">(${escapeHtml(r.state)})</span>
-                <b>${escapeHtml(r.name)}</b>
+                <span class="park-title">
+                  <b>${escapeHtml(r.name)}</b>
+                  <span class="park-state">(${escapeHtml(r.state)})</span>
+                </span>
                 ${badge}
               </div>
             </div>
             ${errorLine}
             ${stationLine}
           </td>
-          <td class="right current-col ${cellClassFor(r.gustKmh)}">${formatKmh(r.gustKmh)}</td>
+          <td class="right current-col ${cellClassFor(r.gustKmh)}"${currentTooltipAttr}>${formatKmh(r.gustKmh)}</td>
           ${hourCells}
           <td class="right updated-col">${updatedCol}</td>
         </tr>
@@ -1088,9 +1105,9 @@ async function bomForecastHourly(geohash){
     try {
       assert('threshold order', DANGER_KMH > WARNING_KMH);
       assert('level none', levelFor(null) === 'none');
-      assert('level ok boundary', levelFor(WARNING_KMH) === 'ok');
-      assert('level warning', levelFor(WARNING_KMH + 0.1) === 'warning');
-      assert('level danger', levelFor(DANGER_KMH + 0.1) === 'danger');
+      assert('level ok boundary', levelFor(WARNING_KMH - 0.1) === 'ok');
+      assert('level warning', levelFor(WARNING_KMH) === 'warning');
+      assert('level danger', levelFor(DANGER_KMH) === 'danger');
 
       // timeAgo sanity
       assert('timeAgo just now', timeAgo(new Date().toISOString()) === 'just now');
