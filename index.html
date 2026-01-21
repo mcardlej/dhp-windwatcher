@@ -176,23 +176,25 @@
     .okCell{color:var(--ok); font-weight:700;}
 
     .dangerFlash{
-      animation: dangerFlash 1s ease-in-out infinite;
-      background-clip: padding-box;
+      position:relative;
     }
-    @keyframes dangerFlash{
-      0%, 100%{
-        background-color: transparent;
-        box-shadow: inset 0 0 0 0 transparent;
-      }
-      50%{
-        background-color: var(--dangerFlashBg);
-        box-shadow:
-          inset 0 0 0 9999px var(--dangerFlashBg),
-          0 0 0 2px var(--dangerFlashShadow);
-      }
+    .dangerFlash::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      box-sizing:border-box;
+      border:2px solid var(--danger);
+      opacity:.25;
+      box-shadow:0 0 0 0 transparent;
+      animation: dangerBorderFlash 1s ease-in-out infinite;
+    }
+    @keyframes dangerBorderFlash{
+      0%, 100%{ opacity:.25; box-shadow:0 0 0 0 transparent; }
+      50%{ opacity:1; box-shadow:0 0 0 2px var(--dangerFlashShadow); }
     }
     @media (prefers-reduced-motion: reduce){
-      .dangerFlash{animation:none; background-color:var(--dangerFlashBg); box-shadow:none;}
+      .dangerFlash::after{animation:none; opacity:1; box-shadow:none;}
     }
 
     /* Info button + modal */
