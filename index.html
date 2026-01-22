@@ -308,6 +308,21 @@
           <option value="WA">WA</option>
         </select>
 
+        <label class="small">Region</label>
+        <select id="regionFilter">
+          <option value="ALL">All</option>
+          <option value="Region 1">Region 1</option>
+          <option value="Region 2">Region 2</option>
+          <option value="Region 3">Region 3</option>
+          <option value="Region 4">Region 4</option>
+          <option value="Region 5">Region 5</option>
+          <option value="Region 6">Region 6</option>
+          <option value="Region 7">Region 7</option>
+          <option value="Region 8">Region 8</option>
+          <option value="Region 9">Region 9</option>
+          <option value="Region 10">Region 10</option>
+        </select>
+
         <label class="small">Search</label>
         <input id="textFilter" placeholder="Filter by park name…" />
       </div>
@@ -410,124 +425,125 @@
   // --- Park list
   const PARKS = [
     // NSW
-    { name: "Ballina", state: "NSW", searchTerm: "Ballina" },
-    { name: "Burrill Lake, Ulladulla", state: "NSW", searchTerm: "Ulladulla" },
-    { name: "Byron Bay", state: "NSW", searchTerm: "Byron Bay" },
-    { name: "Casino", state: "NSW", searchTerm: "Casino" },
-    { name: "Dubbo", state: "NSW", searchTerm: "Dubbo" },
-    { name: "Eden", state: "NSW", searchTerm: "Eden" },
-    { name: "Emerald Beach", state: "NSW", searchTerm: "Emerald Beach" },
-    { name: "Forster", state: "NSW", searchTerm: "Forster" },
-    { name: "Gerroa", state: "NSW", searchTerm: "Gerroa" },
-    { name: "Harrington Beach", state: "NSW", searchTerm: "Harrington" },
-    { name: "Horseshoe Lagoon", state: "NSW", searchTerm: "Horseshoe Lagoon" },
-    { name: "Jindabyne", state: "NSW", searchTerm: "Jindabyne" },
-    { name: "Lake Hume, NSW", state: "NSW", searchTerm: "Lake Hume" },
+    { name: "Ballina", state: "NSW", searchTerm: "Ballina", rom: null },
+    { name: "Burrill Lake, Ulladulla", state: "NSW", searchTerm: "Ulladulla", rom: null },
+    { name: "Byron Bay", state: "NSW", searchTerm: "Byron Bay", rom: null },
+    { name: "Casino", state: "NSW", searchTerm: "Casino", rom: null },
+    { name: "Dubbo", state: "NSW", searchTerm: "Dubbo", rom: null },
+    { name: "Eden", state: "NSW", searchTerm: "Eden", rom: null },
+    { name: "Emerald Beach", state: "NSW", searchTerm: "Emerald Beach", rom: null },
+    { name: "Forster", state: "NSW", searchTerm: "Forster", rom: null },
+    { name: "Gerroa", state: "NSW", searchTerm: "Gerroa", rom: null },
+    { name: "Harrington Beach", state: "NSW", searchTerm: "Harrington", rom: null },
+    { name: "Horseshoe Lagoon", state: "NSW", searchTerm: "Horseshoe Lagoon", rom: null },
+    { name: "Jindabyne", state: "NSW", searchTerm: "Jindabyne", rom: null },
+    { name: "Lake Hume, NSW", state: "NSW", searchTerm: "Lake Hume", rom: null },
     // "Sydney" often maps to Observatory Hill, whose observations frequently report gust as null.
     // "Mascot" maps to Sydney Airport, which reliably provides gust observations + hourly gust forecasts.
-    { name: "Lane Cove", state: "NSW", searchTerm: "Mascot" },
-    { name: "Maidens Inn, Moama", state: "NSW", searchTerm: "Moama" },
-    { name: "Moama Waters", state: "NSW", searchTerm: "Moama" },
-    { name: "Moama West", state: "NSW", searchTerm: "Moama" },
-    { name: "Narooma Beach", state: "NSW", searchTerm: "Narooma" },
-    { name: "Pambula Beach", state: "NSW", searchTerm: "Pambula" },
+    { name: "Lane Cove", state: "NSW", searchTerm: "Mascot", rom: null },
+    { name: "Maidens Inn, Moama", state: "NSW", searchTerm: "Moama", rom: null },
+    { name: "Moama Waters", state: "NSW", searchTerm: "Moama", rom: null },
+    { name: "Moama West", state: "NSW", searchTerm: "Moama", rom: null },
+    { name: "Narooma Beach", state: "NSW", searchTerm: "Narooma", rom: null },
+    { name: "Pambula Beach", state: "NSW", searchTerm: "Pambula", rom: null },
 
     // ACT
-    { name: "Canberra", state: "ACT", searchTerm: "Canberra" },
+    { name: "Canberra", state: "ACT", searchTerm: "Canberra", rom: null },
 
     // NT
-    { name: "Alice Springs", state: "NT", searchTerm: "Alice Springs" },
-    { name: "Bradshaw", state: "NT", searchTerm: "Bradshaw" },
-    { name: "Darwin", state: "NT", searchTerm: "Darwin" },
-    { name: "Delamere", state: "NT", searchTerm: "Delamere" },
-    { name: "Glen Helen", state: "NT", searchTerm: "Alice Springs" },
-    { name: "Katherine", state: "NT", searchTerm: "Katherine" },
-    { name: "Kings Canyon", state: "NT", searchTerm: "Yulara" },
-    { name: "Lansdowne", state: "NT", searchTerm: "Lansdowne" },
+    { name: "Alice Springs", state: "NT", searchTerm: "Alice Springs", rom: null },
+    { name: "Bradshaw", state: "NT", searchTerm: "Bradshaw", rom: null },
+    { name: "Darwin", state: "NT", searchTerm: "Darwin", rom: null },
+    { name: "Delamere", state: "NT", searchTerm: "Delamere", rom: null },
+    { name: "Glen Helen", state: "NT", searchTerm: "Alice Springs", rom: null },
+    { name: "Katherine", state: "NT", searchTerm: "Katherine", rom: null },
+    { name: "Kings Canyon", state: "NT", searchTerm: "Yulara", rom: null },
+    { name: "Lansdowne", state: "NT", searchTerm: "Lansdowne", rom: null },
 
     
     // QLD
-    { name: "Airlie Beach", state: "QLD", searchTerm: "Airlie Beach" },
-    { name: "Argylla", state: "QLD", searchTerm: "Mount Isa" },
-    { name: "Ayr", state: "QLD", searchTerm: "Ayr" },
-    { name: "Bargara", state: "QLD", searchTerm: "Bargara" },
-    { name: "Biloela", state: "QLD", searchTerm: "Biloela" },
-    { name: "Blackwater", state: "QLD", searchTerm: "Blackwater" },
-    { name: "Cloncurry", state: "QLD", searchTerm: "Cloncurry" },
-    { name: "Coolwaters, Yeppoon", state: "QLD", searchTerm: "Yeppoon" },
-    { name: "Emerald", state: "QLD", searchTerm: "Emerald" },
-    { name: "Fraser Street, Hervey Bay", state: "QLD", searchTerm: "Hervey Bay" },
-    { name: "Lake Tinaroo", state: "QLD", searchTerm: "Tinaroo" },
-    { name: "Mackay", state: "QLD", searchTerm: "Mackay" },
-    { name: "Mount Isa", state: "QLD", searchTerm: "Mount Isa" },
-    { name: "Mount Surprise", state: "QLD", searchTerm: "Mount Surprise" },
-    { name: "Rockhampton", state: "QLD", searchTerm: "Rockhampton" },
-    { name: "Tannum Sands", state: "QLD", searchTerm: "Tannum Sands" },
-    { name: "Townsville", state: "QLD", searchTerm: "Townsville" },
-    { name: "Undara", state: "QLD", searchTerm: "Mount Surprise" },
+    { name: "Airlie Beach", state: "QLD", searchTerm: "Airlie Beach", rom: null },
+    { name: "Argylla", state: "QLD", searchTerm: "Mount Isa", rom: null },
+    { name: "Ayr", state: "QLD", searchTerm: "Ayr", rom: null },
+    { name: "Bargara", state: "QLD", searchTerm: "Bargara", rom: null },
+    { name: "Biloela", state: "QLD", searchTerm: "Biloela", rom: null },
+    { name: "Blackwater", state: "QLD", searchTerm: "Blackwater", rom: null },
+    { name: "Cloncurry", state: "QLD", searchTerm: "Cloncurry", rom: null },
+    { name: "Coolwaters, Yeppoon", state: "QLD", searchTerm: "Yeppoon", rom: null },
+    { name: "Emerald", state: "QLD", searchTerm: "Emerald", rom: null },
+    { name: "Fraser Street, Hervey Bay", state: "QLD", searchTerm: "Hervey Bay", rom: null },
+    { name: "Lake Tinaroo", state: "QLD", searchTerm: "Tinaroo", rom: null },
+    { name: "Mackay", state: "QLD", searchTerm: "Mackay", rom: null },
+    { name: "Mount Isa", state: "QLD", searchTerm: "Mount Isa", rom: null },
+    { name: "Mount Surprise", state: "QLD", searchTerm: "Mount Surprise", rom: null },
+    { name: "Rockhampton", state: "QLD", searchTerm: "Rockhampton", rom: null },
+    { name: "Tannum Sands", state: "QLD", searchTerm: "Tannum Sands", rom: null },
+    { name: "Townsville", state: "QLD", searchTerm: "Townsville", rom: null },
+    { name: "Undara", state: "QLD", searchTerm: "Mount Surprise", rom: null },
 
     // SA
-    { name: "Adelaide Beachfront", state: "SA", searchTerm: "Adelaide" },
-    { name: "Barossa Valley", state: "SA", searchTerm: "Tanunda" },
-    { name: "Ardrossan", state: "SA", searchTerm: "Ardrossan" },
-    { name: "Clare", state: "SA", searchTerm: "Clare" },
-    { name: "Coffin Bay", state: "SA", searchTerm: "Coffin Bay" },
-    { name: "Goolwa", state: "SA", searchTerm: "Goolwa" },
-    { name: "Hahndorf", state: "SA", searchTerm: "Hahndorf" },
-    { name: "Kangaroo Island", state: "SA", searchTerm: "Kingscote" },
-    { name: "Lake Bonney", state: "SA", searchTerm: "Barmera" },
-    { name: "McCracken Resort", state: "SA", searchTerm: "Victor Harbor" },
-    { name: "Port Augusta", state: "SA", searchTerm: "Port Augusta" },
-    { name: "Renmark Riverfront", state: "SA", searchTerm: "Renmark" },
-    { name: "Robe", state: "SA", searchTerm: "Robe" },
-    { name: "Roxby Downs", state: "SA", searchTerm: "Roxby Downs" },
-    { name: "Streaky Bay Foreshore", state: "SA", searchTerm: "Streaky Bay" },
-    { name: "Whyalla Foreshore", state: "SA", searchTerm: "Whyalla" },
-    { name: "Wilpena Pound", state: "SA", searchTerm: "Hawker" },
+    { name: "Adelaide Beachfront", state: "SA", searchTerm: "Adelaide", rom: null },
+    { name: "Barossa Valley", state: "SA", searchTerm: "Tanunda", rom: null },
+    { name: "Ardrossan", state: "SA", searchTerm: "Ardrossan", rom: null },
+    { name: "Clare", state: "SA", searchTerm: "Clare", rom: null },
+    { name: "Coffin Bay", state: "SA", searchTerm: "Coffin Bay", rom: null },
+    { name: "Goolwa", state: "SA", searchTerm: "Goolwa", rom: null },
+    { name: "Hahndorf", state: "SA", searchTerm: "Hahndorf", rom: null },
+    { name: "Kangaroo Island", state: "SA", searchTerm: "Kingscote", rom: null },
+    { name: "Lake Bonney", state: "SA", searchTerm: "Barmera", rom: null },
+    { name: "McCracken Resort", state: "SA", searchTerm: "Victor Harbor", rom: null },
+    { name: "Port Augusta", state: "SA", searchTerm: "Port Augusta", rom: null },
+    { name: "Renmark Riverfront", state: "SA", searchTerm: "Renmark", rom: null },
+    { name: "Robe", state: "SA", searchTerm: "Robe", rom: null },
+    { name: "Roxby Downs", state: "SA", searchTerm: "Roxby Downs", rom: null },
+    { name: "Streaky Bay Foreshore", state: "SA", searchTerm: "Streaky Bay", rom: null },
+    { name: "Whyalla Foreshore", state: "SA", searchTerm: "Whyalla", rom: null },
+    { name: "Wilpena Pound", state: "SA", searchTerm: "Hawker", rom: null },
 
     // TAS
-    { name: "Cradle Mountain", state: "TAS", searchTerm: "Cradle Mountain" },
-    { name: "Cradle Mountain Village", state: "TAS", searchTerm: "Cradle Mountain" },
-    { name: "Devonport", state: "TAS", searchTerm: "Devonport" },
-    { name: "Hadspen", state: "TAS", searchTerm: "Hadspen" },
-    { name: "Hobart", state: "TAS", searchTerm: "Hobart" },
-    { name: "Mornington Hobart", state: "TAS", searchTerm: "Hobart" },
+    { name: "Cradle Mountain", state: "TAS", searchTerm: "Cradle Mountain", rom: null },
+    { name: "Cradle Mountain Village", state: "TAS", searchTerm: "Cradle Mountain", rom: null },
+    { name: "Devonport", state: "TAS", searchTerm: "Devonport", rom: null },
+    { name: "Hadspen", state: "TAS", searchTerm: "Hadspen", rom: null },
+    { name: "Hobart", state: "TAS", searchTerm: "Hobart", rom: null },
+    { name: "Mornington Hobart", state: "TAS", searchTerm: "Hobart", rom: null },
 
     // VIC
-    { name: "Bright", state: "VIC", searchTerm: "Bright" },
-    { name: "Echuca", state: "VIC", searchTerm: "Echuca" },
-    { name: "Geelong", state: "VIC", searchTerm: "Geelong" },
-    { name: "Lake Hume, VIC", state: "VIC", searchTerm: "Lake Hume" },
-    { name: "Melbourne", state: "VIC", searchTerm: "Melbourne" },
-    { name: "Mildura, Buronga Riverside", state: "VIC", searchTerm: "Mildura" },
-    { name: "Mount Buffalo", state: "VIC", searchTerm: "Mount Buffalo" },
-    { name: "Nagambie Lakes", state: "VIC", searchTerm: "Nagambie" },
-    { name: "Warrnambool", state: "VIC", searchTerm: "Warrnambool" },
+    { name: "Bright", state: "VIC", searchTerm: "Bright", rom: null },
+    { name: "Echuca", state: "VIC", searchTerm: "Echuca", rom: null },
+    { name: "Geelong", state: "VIC", searchTerm: "Geelong", rom: null },
+    { name: "Lake Hume, VIC", state: "VIC", searchTerm: "Lake Hume", rom: null },
+    { name: "Melbourne", state: "VIC", searchTerm: "Melbourne", rom: null },
+    { name: "Mildura, Buronga Riverside", state: "VIC", searchTerm: "Mildura", rom: null },
+    { name: "Mount Buffalo", state: "VIC", searchTerm: "Mount Buffalo", rom: null },
+    { name: "Nagambie Lakes", state: "VIC", searchTerm: "Nagambie", rom: null },
+    { name: "Warrnambool", state: "VIC", searchTerm: "Warrnambool", rom: null },
 
     // WA
-    { name: "Broome", state: "WA", searchTerm: "Broome" },
-    { name: "Boulder", state: "WA", searchTerm: "Boulder" },
-    { name: "Bunbury Foreshore", state: "WA", searchTerm: "Bunbury" },
-    { name: "Bunbury Village", state: "WA", searchTerm: "Bunbury" },
-    { name: "Busselton", state: "WA", searchTerm: "Busselton" },
-    { name: "Carnarvon", state: "WA", searchTerm: "Carnarvon" },
-    { name: "Coogee Beach", state: "WA", searchTerm: "Coogee" },
-    { name: "Kalgoorlie", state: "WA", searchTerm: "Kalgoorlie" },
-    { name: "Lake Kununurra", state: "WA", searchTerm: "Kununurra" },
-    { name: "Lake Argyle", state: "WA", searchTerm: "Lake Argyle" },
-    { name: "Margaret River", state: "WA", searchTerm: "Margaret River" },
-    { name: "Onslow", state: "WA", searchTerm: "Onslow" },
-    { name: "Perth Airport", state: "WA", searchTerm: "Perth Airport" },
-    { name: "Pilbara, Karratha", state: "WA", searchTerm: "Karratha" },
-    { name: "Port Hedland", state: "WA", searchTerm: "Port Hedland" },
-    { name: "Woodman Point", state: "WA", searchTerm: "Fremantle" },
-    { name: "Rottnest Island", state: "WA", searchTerm: "Rottnest Island" },
-    { name: "Swan Valley", state: "WA", searchTerm: "Herne Hill" },
-    { name: "El Questro", state: "WA", searchTerm: "Kununurra" }
+    { name: "Broome", state: "WA", searchTerm: "Broome", rom: null },
+    { name: "Boulder", state: "WA", searchTerm: "Boulder", rom: null },
+    { name: "Bunbury Foreshore", state: "WA", searchTerm: "Bunbury", rom: null },
+    { name: "Bunbury Village", state: "WA", searchTerm: "Bunbury", rom: null },
+    { name: "Busselton", state: "WA", searchTerm: "Busselton", rom: null },
+    { name: "Carnarvon", state: "WA", searchTerm: "Carnarvon", rom: null },
+    { name: "Coogee Beach", state: "WA", searchTerm: "Coogee", rom: null },
+    { name: "Kalgoorlie", state: "WA", searchTerm: "Kalgoorlie", rom: null },
+    { name: "Lake Kununurra", state: "WA", searchTerm: "Kununurra", rom: null },
+    { name: "Lake Argyle", state: "WA", searchTerm: "Lake Argyle", rom: null },
+    { name: "Margaret River", state: "WA", searchTerm: "Margaret River", rom: null },
+    { name: "Onslow", state: "WA", searchTerm: "Onslow", rom: null },
+    { name: "Perth Airport", state: "WA", searchTerm: "Perth Airport", rom: null },
+    { name: "Pilbara, Karratha", state: "WA", searchTerm: "Karratha", rom: null },
+    { name: "Port Hedland", state: "WA", searchTerm: "Port Hedland", rom: null },
+    { name: "Woodman Point", state: "WA", searchTerm: "Fremantle", rom: null },
+    { name: "Rottnest Island", state: "WA", searchTerm: "Rottnest Island", rom: null },
+    { name: "Swan Valley", state: "WA", searchTerm: "Herne Hill", rom: null },
+    { name: "El Questro", state: "WA", searchTerm: "Kununurra", rom: null }
   ];
 
   const els = {
     stateFilter: document.getElementById('stateFilter'),
+    regionFilter: document.getElementById('regionFilter'),
     textFilter: document.getElementById('textFilter'),
     refreshBtn: document.getElementById('refreshBtn'),
     status: document.getElementById('status'),
@@ -601,6 +617,7 @@
   function currentPrefs(){
     return {
       state: els.stateFilter.value,
+      region: els.regionFilter.value,
       text: els.textFilter.value,
       showWarning: !!showWarningParks,
       showDanger: !!showDangerParks,
@@ -625,6 +642,12 @@
     if (typeof p.state === 'string') {
       const opt = Array.from(els.stateFilter.options).some(o => o.value === p.state);
       if (opt) els.stateFilter.value = p.state;
+    }
+
+    // Region
+    if (typeof p.region === 'string') {
+      const opt = Array.from(els.regionFilter.options).some(o => o.value === p.region);
+      if (opt) els.regionFilter.value = p.region;
     }
 
     // Text
@@ -897,6 +920,7 @@
 
   function filteredRows(){
     const st = els.stateFilter.value;
+    const rg = els.regionFilter.value;
     const q = els.textFilter.value.trim().toLowerCase();
 
     const filterOn = showWarningParks || showDangerParks;
@@ -907,6 +931,7 @@
         return r;
       })
       .filter(r => (st === 'ALL' ? true : r.state === st))
+      .filter(r => (rg === 'ALL' ? true : r.rom === rg))
       .filter(r => (q ? r.name.toLowerCase().includes(q) : true))
       .filter(r => {
         if (!filterOn) return true;
@@ -1391,6 +1416,7 @@ async function bomForecastHourly(geohash){
     const prevWarn = showWarningParks;
     const prevDanger = showDangerParks;
     const prevState = els.stateFilter.value;
+    const prevRegion = els.regionFilter.value;
     const prevText = els.textFilter.value;
     const prevRows = allRows;
     const prevSortKey = sortKey;
@@ -1443,6 +1469,7 @@ async function bomForecastHourly(geohash){
       showWarningParks = prevWarn;
       showDangerParks = prevDanger;
       els.stateFilter.value = prevState;
+      els.regionFilter.value = prevRegion;
       els.textFilter.value = prevText;
       allRows = prevRows;
       sortKey = prevSortKey;
@@ -1504,6 +1531,11 @@ async function bomForecastHourly(geohash){
     allRows = [];
     render();
     loadData();
+  });
+
+  els.regionFilter.addEventListener('change', () => {
+    savePrefs();
+    render();
   });
 
   els.textFilter.addEventListener('input', () => {
