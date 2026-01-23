@@ -141,18 +141,18 @@
     .weather-warning-btn svg{width:14px; height:14px; display:block;}
     .weather-warning-btn.wx-alert{
       animation: wxAlertPulse 1.1s ease-in-out infinite;
-      box-shadow:0 0 0 2px var(--danger);
+      box-shadow:0 0 0 1px var(--danger);
     }
     @keyframes wxAlertPulse{
-      0%,100%{ box-shadow:0 0 0 2px var(--danger); }
-      50%{ box-shadow:0 0 0 2px var(--danger), 0 0 0 6px var(--dangerFlashShadow); }
+      0%,100%{ box-shadow:0 0 0 1px var(--danger); }
+      50%{ box-shadow:0 0 0 1px var(--danger), 0 0 0 5px var(--dangerFlashShadow); }
     }
     html[data-refreshing="1"] .weather-warning-btn.wx-alert{
       animation:none !important;
-      box-shadow:0 0 0 2px var(--danger);
+      box-shadow:0 0 0 1px var(--danger);
     }
     @media (prefers-reduced-motion: reduce){
-      .weather-warning-btn.wx-alert{animation:none; box-shadow:0 0 0 2px var(--danger);}
+      .weather-warning-btn.wx-alert{animation:none; box-shadow:0 0 0 1px var(--danger);}
     }
     .weather-warning-count{font-weight:700; font-size:11px;}
     .badge[data-tooltip]{position:relative; cursor:help;}
