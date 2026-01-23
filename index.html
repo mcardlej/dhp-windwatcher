@@ -280,11 +280,11 @@
     .modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; padding:18px; z-index:9999;}
     .modal.open{display:flex;}
     .modal-backdrop{position:absolute; inset:0; background:rgba(17,24,39,.38);}
-    .modal-card{position:relative; width:min(720px, 100%); background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.18); overflow:hidden;}
+    .modal-card{position:relative; width:min(720px, 100%); max-height:calc(100vh - 36px); background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.18); overflow:hidden; display:flex; flex-direction:column;}
     .modal-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--line)}
     .modal-title{margin:0; font-size:14px; font-weight:800;}
     .modal-close{border-radius:10px; padding:8px 10px;}
-    .modal-body{padding:14px 16px; color:var(--text);}
+    .modal-body{padding:14px 16px; color:var(--text); overflow:auto;}
     .modal-body p{margin:0 0 10px; color:var(--muted); font-size:13px; line-height:1.45}
     .modal-body ul{margin:8px 0 0 18px; padding:0; color:var(--muted); font-size:13px; line-height:1.45}
     .modal-body li{margin:6px 0}
@@ -462,6 +462,8 @@
   const DANGER_KMH  = 63;
   const WARNING_TOOLTIP = 'Trees 13m or greater: Advise all park occupants to limit time spent in fall zones with no protection factors';
   const DANGER_TOOLTIP = 'Trees 6-12m: Advise all park occupants to limit time spent in fall zones with no protection factors. Trees 13m or greater: Create exclusion zone of tree hight +50% for fall zones with no protection factors';
+  const IMPORTANT_WARNING_GROUPS = new Set(['major', 'moderate']);
+  const IMPORTANT_WARNING_LABEL = 'major and moderate warnings only';
   const STATE_NAMES = {
     NSW: 'new south wales',
     ACT: 'australian capital territory',
@@ -1378,8 +1380,16 @@
     return json;
   }
 
+  function isImportantWarning(warn){
+    const group = String(warn?.warning_group_type || '').toLowerCase();
+    if (!group) return true;
+    return IMPORTANT_WARNING_GROUPS.has(group);
+  }
+
   function setWarnings(list){
-    warningsList = Array.isArray(list) ? list : [];
+    warningsList = Array.isArray(list)
+      ? list.filter(isImportantWarning)
+      : [];
     warningsList.forEach(w => {
       if (w && typeof w === 'object') {
         w.__normText = normalizeText(`${w.title || ''} ${w.short_title || ''}`);
@@ -1778,7 +1788,7 @@ async function bomForecastHourly(geohash){
     (details || []).forEach(d => { if (d?.id) detailById.set(d.id, d); });
 
     const tzNote = timeZoneForState(state) ? `${state} local time` : 'local time';
-    const summary = `<p class="small muted">Warnings provided by BOM. Times shown in ${tzNote}.</p>`;
+    const summary = `<p class="small muted">Warnings provided by BOM. Times shown in ${tzNote}. Showing ${IMPORTANT_WARNING_LABEL}.</p>`;
 
     const cards = (warnings || []).map(w => {
       const detail = detailById.get(w.id) || {};
