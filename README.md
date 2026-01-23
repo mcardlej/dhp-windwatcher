@@ -12,9 +12,11 @@ Supported parameters:
 - `wind`: `all`, `warning` (High), or `danger` (Very high)
 - `search`: free-text search (URL-encoded)
 - `alerts`: `1`, `true`, `yes`, `on` to enable alerts-only; `0`, `false`, `no`, `off` to disable
+- `heatwave`: `1`, `true`, `yes`, `on` to include heatwave alerts (default); `0`, `false`, `no`, `off` to hide them
 
 Examples (replace the base URL with your deployed site):
 
 - `https://your-site/?state=WA&wind=danger`
 - `https://your-site/?state=QLD&region=SG&search=airlie&alerts=1`
 - `https://your-site/?wind=warning&search=bay`
+- `https://your-site/?alerts=1&heatwave=0`

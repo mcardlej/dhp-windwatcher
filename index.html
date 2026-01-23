@@ -397,6 +397,11 @@
           <span class="dot"></span>
           Alerts only
         </label>
+        <label class="toggle warn" title="Toggle heatwave warnings">
+          <input id="showHeatwaveWarnings" type="checkbox" checked />
+          <span class="dot"></span>
+          Heatwave
+        </label>
       </div>
 
       <div class="controls-right">
@@ -646,6 +651,7 @@
     textFilter: document.getElementById('textFilter'),
     severityFilter: document.getElementById('severityFilter'),
     showWxWarnings: document.getElementById('showWxWarnings'),
+    showHeatwaveWarnings: document.getElementById('showHeatwaveWarnings'),
     refreshBtn: document.getElementById('refreshBtn'),
     resetFiltersBtn: document.getElementById('resetFiltersBtn'),
     status: document.getElementById('status'),
@@ -668,6 +674,7 @@
     text: '',
     severity: 'all',
     alertsOnly: false,
+    heatwaveWarnings: true,
   };
 
   const cache = { locations: new Map() };
@@ -695,13 +702,14 @@
   // Filters
   let severityFilter = 'all'; // 'all' | 'warning' | 'danger'
   let showWeatherWarnings = false;
+  let heatwaveWarningsEnabled = true;
 
   let darkModeEnabled = false;
 
   // --- Persist UI prefs (filters + sort) ---
   // Uses localStorage when available, falls back to cookies.
   const PREF_KEY = 'dp_wind_watcher_prefs_v1';
-  const URL_FILTER_KEYS = ['state', 'region', 'wind', 'severity', 'search', 'alerts'];
+  const URL_FILTER_KEYS = ['state', 'region', 'wind', 'severity', 'search', 'alerts', 'heatwave'];
 
   function cookieGet(name){
     const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.$?*|{}()\[\]\\\/\+^]/g,'\\$&') + '=([^;]*)'));
@@ -786,8 +794,14 @@
       const alertsVal = parseBoolParam(params.get('alerts'));
       if (typeof alertsVal === 'boolean') showWeatherWarnings = alertsVal;
     }
+    if (params.has('heatwave')) {
+      const heatwaveVal = parseBoolParam(params.get('heatwave'));
+      if (typeof heatwaveVal === 'boolean') heatwaveWarningsEnabled = heatwaveVal;
+    }
     if (els.showWxWarnings) els.showWxWarnings.checked = !!showWeatherWarnings;
+    if (els.showHeatwaveWarnings) els.showHeatwaveWarnings.checked = !!heatwaveWarningsEnabled;
     syncWeatherToggle();
+    syncHeatwaveToggle();
   }
 
   function updateUrlFromFilters(){
@@ -809,6 +823,9 @@
     if (searchVal) params.set('search', searchVal);
 
     if (showWeatherWarnings) params.set('alerts', '1');
+    if (heatwaveWarningsEnabled !== DEFAULT_FILTERS.heatwaveWarnings) {
+      params.set('heatwave', heatwaveWarningsEnabled ? '1' : '0');
+    }
 
     const nextQuery = params.toString();
     const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash || ''}`;
@@ -823,6 +840,7 @@
       text: els.textFilter.value,
       severity: severityFilter,
       showWeatherWarnings: !!showWeatherWarnings,
+      heatwaveWarnings: !!heatwaveWarningsEnabled,
       darkMode: !!darkModeEnabled,
       sortKey: sortKey,
       sortDir: sortDir,
@@ -870,11 +888,14 @@
       else severityFilter = 'all';
     }
     if (typeof p.showWeatherWarnings === 'boolean') showWeatherWarnings = p.showWeatherWarnings;
+    if (typeof p.heatwaveWarnings === 'boolean') heatwaveWarningsEnabled = p.heatwaveWarnings;
     if (typeof p.darkMode === 'boolean') darkModeEnabled = p.darkMode;
 
     if (els.severityFilter) els.severityFilter.value = severityFilter;
     if (els.showWxWarnings) els.showWxWarnings.checked = !!showWeatherWarnings;
+    if (els.showHeatwaveWarnings) els.showHeatwaveWarnings.checked = !!heatwaveWarningsEnabled;
     syncWeatherToggle();
+    syncHeatwaveToggle();
 
     // Sort
     if (p.sortKey === null) {
@@ -898,6 +919,12 @@
     if (!els.showWxWarnings) return;
     const label = els.showWxWarnings.closest('.toggle');
     if (label) label.classList.toggle('active', !!showWeatherWarnings);
+  }
+
+  function syncHeatwaveToggle(){
+    if (!els.showHeatwaveWarnings) return;
+    const label = els.showHeatwaveWarnings.closest('.toggle');
+    if (label) label.classList.toggle('active', !!heatwaveWarningsEnabled);
   }
 
   function setStatus(msg){
@@ -1069,6 +1096,30 @@
     if (!type) return '';
     const t = String(type).replace(/_/g, ' ').toLowerCase();
     return t.replace(/\b\w/g, (m) => m.toUpperCase());
+  }
+
+  const HEATWAVE_WARNING_RE = /\bheat\s*wave\b/i;
+
+  function isHeatwaveWarning(warn){
+    const fields = [
+      warn?.type,
+      warn?.warning_type,
+      warn?.type_description,
+      warn?.short_title,
+      warn?.title,
+      warn?.headline,
+    ];
+    return fields.some(v => typeof v === 'string' && HEATWAVE_WARNING_RE.test(v));
+  }
+
+  function filterHeatwaveWarnings(list){
+    if (!Array.isArray(list)) return [];
+    if (heatwaveWarningsEnabled) return list;
+    return list.filter(w => !isHeatwaveWarning(w));
+  }
+
+  function warningsForRow(row){
+    return filterHeatwaveWarnings(row?.weatherWarnings);
   }
 
   function formatDateTime(ts, state){
@@ -1259,7 +1310,7 @@
       })
       .filter(r => {
         if (!showWeatherWarnings) return true;
-        return Array.isArray(r.weatherWarnings) && r.weatherWarnings.length > 0;
+        return warningsForRow(r).length > 0;
       });
 
     return sortRows(rows);
@@ -1271,7 +1322,7 @@
     const warning = rows.filter(r => r.severity === 'warning').length;
     const ok = rows.filter(r => r.loaded && (r.severity === 'ok')).length;
     const missing = rows.filter(r => r.loaded && r.severity === 'none').length;
-    const weatherWarn = rows.filter(r => Array.isArray(r.weatherWarnings) && r.weatherWarnings.length > 0).length;
+    const weatherWarn = rows.filter(r => warningsForRow(r).length > 0).length;
 
     els.stats.innerHTML = [
       `<span class="chip"><b>${total}</b> parks</span>`,
@@ -1303,6 +1354,9 @@
     if (textVal) parts.push({ label: 'Search', value: `"${textVal}"` });
 
     if (showWeatherWarnings) parts.push({ label: 'Alerts', value: 'Alerts Only' });
+    if (heatwaveWarningsEnabled !== DEFAULT_FILTERS.heatwaveWarnings) {
+      parts.push({ label: 'Heatwave', value: heatwaveWarningsEnabled ? 'On' : 'Off' });
+    }
 
     if (!parts.length) {
       els.filterSummary.innerHTML = '<span class="small muted">No filters applied.</span>';
@@ -1328,7 +1382,7 @@
   }
 
   function renderWeatherWarningButton(row){
-    const warnings = Array.isArray(row.weatherWarnings) ? row.weatherWarnings : [];
+    const warnings = warningsForRow(row);
     const ids = warnings.map(w => w?.id).filter(Boolean);
     if (!ids.length) return '';
     const count = ids.length;
@@ -1474,10 +1528,13 @@
     els.textFilter.value = DEFAULT_FILTERS.text;
     severityFilter = DEFAULT_FILTERS.severity;
     showWeatherWarnings = DEFAULT_FILTERS.alertsOnly;
+    heatwaveWarningsEnabled = DEFAULT_FILTERS.heatwaveWarnings;
 
     if (els.severityFilter) els.severityFilter.value = severityFilter;
     if (els.showWxWarnings) els.showWxWarnings.checked = !!showWeatherWarnings;
+    if (els.showHeatwaveWarnings) els.showHeatwaveWarnings.checked = !!heatwaveWarningsEnabled;
     syncWeatherToggle();
+    syncHeatwaveToggle();
 
     savePrefs();
     updateUrlFromFilters();
@@ -1865,6 +1922,7 @@
     // Preserve any user state (self-tests should be side-effect free)
     const prevSeverity = severityFilter;
     const prevWeather = showWeatherWarnings;
+    const prevHeatwave = heatwaveWarningsEnabled;
     const prevState = els.stateFilter.value;
     const prevRegion = els.regionFilter.value;
     const prevText = els.textFilter.value;
@@ -1903,6 +1961,13 @@
       severityFilter = 'all'; showWeatherWarnings = false;
       assert('filter off shows all', filteredRows().length === 3);
 
+      const warnRow = { weatherWarnings: [{ type: 'heatwave warning' }, { type: 'flood' }] };
+      heatwaveWarningsEnabled = true;
+      assert('heatwave filter on', warningsForRow(warnRow).length === 2);
+      heatwaveWarningsEnabled = false;
+      assert('heatwave filter off', warningsForRow(warnRow).length === 1);
+      heatwaveWarningsEnabled = prevHeatwave;
+
       severityFilter = 'warning';
       assert('warning includes danger', filteredRows().length === 2);
 
@@ -1916,6 +1981,7 @@
     } finally {
       severityFilter = prevSeverity;
       showWeatherWarnings = prevWeather;
+      heatwaveWarningsEnabled = prevHeatwave;
       els.stateFilter.value = prevState;
       els.regionFilter.value = prevRegion;
       els.textFilter.value = prevText;
@@ -1930,7 +1996,12 @@
     (details || []).forEach(d => { if (d?.id) detailById.set(d.id, d); });
 
     const tzNote = timeZoneForState(state) ? `${state} local time` : 'local time';
-    const summary = `<p class="small muted">Alerts provided by BOM. Times shown in ${tzNote}. Showing ${IMPORTANT_WARNING_LABEL}.</p>`;
+    const summaryParts = [
+      `Alerts provided by BOM. Times shown in ${tzNote}.`,
+      `Showing ${IMPORTANT_WARNING_LABEL}.`,
+    ];
+    if (!heatwaveWarningsEnabled) summaryParts.push('Heatwave alerts hidden by filter.');
+    const summary = `<p class="small muted">${summaryParts.join(' ')}</p>`;
 
     const cards = (warnings || []).map(w => {
       const detail = detailById.get(w.id) || {};
@@ -2084,6 +2155,16 @@
     });
   }
 
+  if (els.showHeatwaveWarnings) {
+    els.showHeatwaveWarnings.addEventListener('change', (e) => {
+      heatwaveWarningsEnabled = !!e.target.checked;
+      syncHeatwaveToggle();
+      savePrefs();
+      updateUrlFromFilters();
+      render();
+    });
+  }
+
   if (els.resetFiltersBtn) {
     els.resetFiltersBtn.addEventListener('click', resetFilters);
   }
@@ -2128,6 +2209,8 @@
 
     applyPrefs();
     applyUrlFilters();
+    syncWeatherToggle();
+    syncHeatwaveToggle();
     applyTheme();
     runSelfTests();
     render();
