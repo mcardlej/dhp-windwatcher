@@ -86,6 +86,7 @@
     .toggle input{display:none}
     .toggle .dot{width:16px; height:16px; border-radius:999px; background:var(--line); position:relative}
     .toggle .dot::after{content:''; position:absolute; inset:3px; border-radius:999px; background:transparent}
+    .toggle .toggle-icon{width:14px; height:14px; display:block;}
 
     .toggle.warn input:checked + .dot{background:var(--warning)}
     .toggle.warn input:checked + .dot::after{background:#fff}
@@ -446,12 +447,12 @@
     </div>
   </div>
 
-  <!-- Weather warning modal -->
+  <!-- Weather alert modal -->
   <div id="warningModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="warningTitle">
     <div class="modal-backdrop" data-close="1"></div>
     <div class="modal-card">
       <div class="modal-head">
-        <div class="modal-title" id="warningTitle">Weather warnings</div>
+        <div class="modal-title" id="warningTitle">Weather alerts</div>
         <button id="warningClose" class="icon-btn modal-close" type="button">Close</button>
       </div>
       <div class="modal-body" id="warningBody"></div>
@@ -472,7 +473,7 @@
   const WARNING_TOOLTIP = 'Trees 13m or greater: Advise all park occupants to limit time spent in fall zones with no protection factors';
   const DANGER_TOOLTIP = 'Trees 6-12m: Advise all park occupants to limit time spent in fall zones with no protection factors. Trees 13m or greater: Create exclusion zone of tree hight +50% for fall zones with no protection factors';
   const IMPORTANT_WARNING_GROUPS = new Set(['major', 'moderate']);
-  const IMPORTANT_WARNING_LABEL = 'major and moderate warnings only';
+  const IMPORTANT_WARNING_LABEL = 'major and moderate alerts only';
   const STATE_NAMES = {
     NSW: 'new south wales',
     ACT: 'australian capital territory',
@@ -1136,7 +1137,7 @@
       `<span class="chip"><b>${missing}</b> no gust data</span>`,
       `<span class="chip"><b style="color:var(--warning)">${warning}</b> warning &gt;= ${WARNING_KMH}</span>`,
       `<span class="chip"><b style="color:var(--danger)">${danger}</b> danger &gt;= ${DANGER_KMH}</span>`,
-      `<span class="chip"><b style="color:var(--danger)">${weatherWarn}</b> weather warnings</span>`,
+      `<span class="chip"><b style="color:var(--danger)">${weatherWarn}</b> weather alerts</span>`,
       `<label class="toggle warn ${showWarningParks ? 'active' : ''}" style="margin-left:4px">
          <input id="showWarning" type="checkbox" ${showWarningParks ? 'checked' : ''} />
          <span class="dot"></span>
@@ -1150,7 +1151,12 @@
       `<label class="toggle wx ${showWeatherWarnings ? 'active' : ''}">
          <input id="showWxWarnings" type="checkbox" ${showWeatherWarnings ? 'checked' : ''} />
          <span class="dot"></span>
-         weather warnings
+         <svg class="toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+           <path d="M10.29 3.86 1.82 18a1 1 0 0 0 .85 1.5h18.66a1 1 0 0 0 .85-1.5L13.71 3.86a1 1 0 0 0-1.72 0z"></path>
+           <line x1="12" y1="9" x2="12" y2="13"></line>
+           <line x1="12" y1="17" x2="12.01" y2="17"></line>
+         </svg>
+         weather alerts
        </label>`
     ].join('');
   }
@@ -1172,7 +1178,7 @@
     const ids = warnings.map(w => w?.id).filter(Boolean);
     if (!ids.length) return '';
     const count = ids.length;
-    const label = `Weather warning${count > 1 ? 's' : ''} for ${row.name} (${count})`;
+    const label = `Weather alert${count > 1 ? 's' : ''} for ${row.name} (${count})`;
     const idsAttr = escapeHtml(ids.join(','));
     const nameAttr = escapeHtml(row.name || '');
     const stateAttr = escapeHtml(row.state || '');
@@ -1813,11 +1819,11 @@ async function bomForecastHourly(geohash){
     (details || []).forEach(d => { if (d?.id) detailById.set(d.id, d); });
 
     const tzNote = timeZoneForState(state) ? `${state} local time` : 'local time';
-    const summary = `<p class="small muted">Warnings provided by BOM. Times shown in ${tzNote}. Showing ${IMPORTANT_WARNING_LABEL}.</p>`;
+    const summary = `<p class="small muted">Alerts provided by BOM. Times shown in ${tzNote}. Showing ${IMPORTANT_WARNING_LABEL}.</p>`;
 
     const cards = (warnings || []).map(w => {
       const detail = detailById.get(w.id) || {};
-      const shortTitle = detail.short_title || w.short_title || w.title || 'Weather warning';
+      const shortTitle = detail.short_title || w.short_title || w.title || 'Weather alert';
       const areaTitle = detail.title || w.title || '';
       const group = String(w.warning_group_type || '').toLowerCase();
       const groupClass = group ? `group-${group.replace(/[^a-z0-9-]/g, '')}` : '';
@@ -1841,7 +1847,7 @@ async function bomForecastHourly(geohash){
       const messageHtml = detail.message ? sanitizeWarningHtml(detail.message) : '';
       const messageBlock = messageHtml
         ? `<div class="warning-message">${messageHtml}</div>`
-        : `<div class="warning-message muted">No detailed message is available for this warning.</div>`;
+        : `<div class="warning-message muted">No detailed message is available for this alert.</div>`;
 
       return `
         <article class="warning-card">
@@ -1864,12 +1870,12 @@ async function bomForecastHourly(geohash){
     els.warningBody.innerHTML = `
       ${summary}
       <div class="warning-list">
-        ${cards || '<div class="empty-state"><div class="empty-title">No active warnings for this park.</div><div class="small muted">Warnings are refreshed with the BOM feed.</div></div>'}
+        ${cards || '<div class="empty-state"><div class="empty-title">No active alerts for this park.</div><div class="small muted">Alerts are refreshed with the BOM feed.</div></div>'}
       </div>
     `;
 
     if (els.warningTitle) {
-      els.warningTitle.textContent = `Weather warnings for ${parkName}`;
+      els.warningTitle.textContent = `Weather alerts for ${parkName}`;
     }
   }
 
@@ -1882,12 +1888,12 @@ async function bomForecastHourly(geohash){
     const warnings = ids.map(id => warningsById.get(id)).filter(Boolean);
 
     if (els.warningTitle) {
-      els.warningTitle.textContent = `Weather warnings for ${parkName}`;
+      els.warningTitle.textContent = `Weather alerts for ${parkName}`;
     }
     els.warningBody.innerHTML = `
       <div class="loading-state" role="status" aria-live="polite">
         <div class="spinner" aria-hidden="true"></div>
-        <div class="loading-title">Loading warnings...</div>
+        <div class="loading-title">Loading alerts...</div>
         <div class="small muted">Fetching details from BOM.</div>
       </div>
     `;
@@ -1962,7 +1968,7 @@ async function bomForecastHourly(geohash){
     }
   });
 
-  // Weather warning icons live in the table body (event delegation).
+  // Weather alert icons live in the table body (event delegation).
   els.tbody.addEventListener('click', (e) => {
     const btn = e.target.closest('.weather-warning-btn');
     if (!btn) return;
