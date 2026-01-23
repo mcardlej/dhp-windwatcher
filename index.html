@@ -362,7 +362,7 @@
           <option value="JD">Jeff</option>
           <option value="SL">Scott</option>
           <option value="JL">James</option>
-          <option value="WS">Work Stay</option>
+          <option value="WS">Workstay</option>
           <option value="RH">Hospitality</option>
         </select>
 
@@ -370,7 +370,7 @@
         <select id="severityFilter">
           <option value="all">All</option>
           <option value="warning">High</option>
-          <option value="danger">Very High</option>
+          <option value="danger">Very high</option>
         </select>
 
         <label class="small">Search</label>
@@ -379,7 +379,7 @@
         <label class="toggle wx" title="Filter to parks with active weather alerts">
           <input id="showWxWarnings" type="checkbox" />
           <span class="dot"></span>
-          Alerts Only
+          Alerts only
         </label>
       </div>
 
@@ -454,7 +454,7 @@
         <p>
           Uses Bureau of Meteorology (BOM) data (<span class="nowrap">api.weather.bom.gov.au</span>). Gusts are in km/h.
           <span style="color:var(--warning); font-weight:800">High</span> <span id="warningValue">51</span> and above;
-          <span style="color:var(--danger); font-weight:800">Very High</span> <span id="dangerValue">63</span> and above.
+          <span style="color:var(--danger); font-weight:800">Very high</span> <span id="dangerValue">63</span> and above.
         </p>
         <ul>
           <li><b>Current</b> is the latest observed gust.</li>
@@ -1200,7 +1200,7 @@
       `<span class="chip"><b>${ok}</b> OK</span>`,
       `<span class="chip"><b>${missing}</b> no gust data</span>`,
       `<span class="chip"><b style="color:var(--warning)">${warning}</b> High &gt;= ${WARNING_KMH}</span>`,
-      `<span class="chip"><b style="color:var(--danger)">${danger}</b> Very High &gt;= ${DANGER_KMH}</span>`,
+      `<span class="chip"><b style="color:var(--danger)">${danger}</b> Very high &gt;= ${DANGER_KMH}</span>`,
       `<span class="chip"><b style="color:var(--danger)">${weatherWarn}</b> weather alerts</span>`
     ].join('');
   }
@@ -1218,7 +1218,7 @@
     if (severityFilter !== DEFAULT_FILTERS.severity) {
       const sevLabel = severityFilter === 'warning'
         ? 'High'
-        : 'Very High';
+        : 'Very high';
       parts.push({ label: 'Wind', value: sevLabel });
     }
 
@@ -1240,7 +1240,7 @@
   function badgeFor(sev){
     if (sev === 'danger') {
       const tip = escapeHtml(DANGER_TOOLTIP);
-      return `<span class="badge danger" data-tooltip="${tip}" aria-label="${tip}" tabindex="0">Very High</span>`;
+      return `<span class="badge danger" data-tooltip="${tip}" aria-label="${tip}" tabindex="0">Very high</span>`;
     }
     if (sev === 'warning') {
       const tip = escapeHtml(WARNING_TOOLTIP);
