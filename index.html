@@ -519,7 +519,6 @@
     NT: 'northern territory',
     WA: 'western australia',
   };
-  const STATE_CODE_SET = new Set(Object.keys(STATE_NAMES).map(s => s.toLowerCase()));
   // ==================
 
   // --- Park list
@@ -673,10 +672,7 @@
 
   const cache = { locations: new Map() };
   const LOC_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12h, matches worker /locations cache
-  let warningsList = [];
   let warningsById = new Map();
-  let warningsReady = false;
-  let warningsLoadPromise = null;
   const warningDetailCache = new Map();
   let warningModalToken = 0;
   let allRows = [];
@@ -1067,25 +1063,6 @@
       .replaceAll('>','&gt;')
       .replaceAll('"','&quot;')
       .replaceAll("'",'&#039;');
-  }
-
-  function escapeRegex(s){
-    return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
-
-  function normalizeText(s){
-    return String(s || '')
-      .toLowerCase()
-      .replace(/&/g, ' and ')
-      .replace(/[^a-z0-9]+/g, ' ')
-      .trim()
-      .replace(/\s+/g, ' ');
-  }
-
-  function containsTerm(haystack, term){
-    if (!haystack || !term) return false;
-    const re = new RegExp(`(?:^|\\s)${escapeRegex(term)}(?:\\s|$)`);
-    return re.test(haystack);
   }
 
   function formatWarningType(type){
@@ -1595,15 +1572,6 @@
     }
   }
 
-  async function bomWarnings(){
-    const url = `${BOM_BASE}/warnings`;
-    const json = await fetchJson(url);
-    if (!json || !Array.isArray(json.data)) {
-      throw new Error('BOM warnings payload missing data[]');
-    }
-    return json.data;
-  }
-
   async function bomWarningDetail(id){
     const url = `${BOM_BASE}/warnings/${encodeURIComponent(id)}`;
     const json = await fetchJson(url);
@@ -1620,79 +1588,25 @@
     return IMPORTANT_WARNING_GROUPS.has(group);
   }
 
-  function setWarnings(list){
-    warningsList = Array.isArray(list)
-      ? list.filter(isImportantWarning)
-      : [];
-    warningsList.forEach(w => {
-      if (w && typeof w === 'object') {
-        w.__normText = normalizeText(`${w.title || ''} ${w.short_title || ''}`);
-      }
+  function registerWarnings(list){
+    const filtered = Array.isArray(list) ? list.filter(isImportantWarning) : [];
+    filtered.forEach(w => {
+      if (w && typeof w === 'object' && w.id) warningsById.set(w.id, w);
     });
-    warningsById = new Map(warningsList.map(w => [w.id, w]));
-    warningsReady = true;
+    return filtered;
   }
 
-  async function loadWarnings(){
-    warningsReady = false;
-    try {
-      const list = await bomWarnings();
-      setWarnings(list);
-    } catch {
-      setWarnings([]);
+  // Location-specific warnings are more reliable than title matching.
+  async function bomLocationWarnings(geohash){
+    const gh = String(geohash || '');
+    const url = `${BOM_BASE}/locations/${encodeURIComponent(gh)}/warnings`;
+    const json = await fetchJson(url);
+    if (json?.errors?.length) {
+      const e = json.errors[0];
+      throw new Error(`${e.title || 'BOM error'}: ${e.detail || e.code || 'unknown'}`);
     }
-    return warningsList;
-  }
-
-  function buildWarningTerms(row){
-    const terms = new Set();
-    const candidates = [];
-    if (row.searchTerm) candidates.push(row.searchTerm);
-    if (row.name) candidates.push(row.name);
-    if (row.name && row.name.includes(',')) {
-      row.name.split(',').forEach(part => candidates.push(part));
-    }
-
-    candidates.forEach(c => {
-      const clean = normalizeText(c);
-      if (!clean) return;
-      if (clean.length < 3) return;
-      if (STATE_CODE_SET.has(clean)) return;
-      terms.add(clean);
-    });
-
-    return Array.from(terms);
-  }
-
-  function warningMatchesPark(warn, row, terms){
-    if (!warn || !row) return false;
-    const warnStates = Array.isArray(warn.states) ? warn.states : (warn.state ? [warn.state] : []);
-    if (row.state && warnStates.length) {
-      const matchState = warnStates.some(s => String(s).toUpperCase() === row.state);
-      if (!matchState) return false;
-    }
-
-    const text = warn.__normText || normalizeText(`${warn.title || ''} ${warn.short_title || ''}`);
-    if (terms.some(term => containsTerm(text, term))) return true;
-
-    const stateName = STATE_NAMES[row.state] || '';
-    if (stateName && containsTerm(text, stateName)) return true;
-
-    return false;
-  }
-
-  function applyWarningsToRow(row){
-    if (!row) return;
-    if (!warningsReady || !warningsList.length) {
-      row.weatherWarnings = [];
-      return;
-    }
-    const terms = buildWarningTerms(row);
-    if (!terms.length) {
-      row.weatherWarnings = [];
-      return;
-    }
-    row.weatherWarnings = warningsList.filter(w => warningMatchesPark(w, row, terms));
+    const list = Array.isArray(json?.data) ? json.data : [];
+    return registerWarnings(list);
   }
 
   function getWarningDetail(id){
@@ -1755,27 +1669,23 @@
   }
 
   // Hourly forecasts (broader coverage than 3-hourly)
-// We pass the location geohash and let the proxy try safe variants.
-async function bomForecastHourly(geohash){
-  const gh = String(geohash || '');
-  const url = `${BOM_BASE}/locations/${encodeURIComponent(gh)}/forecasts/hourly`;
-  const json = await fetchJson(url);
-  if (json?.errors?.length) {
-    const e = json.errors[0];
-    throw new Error(`${e.title || 'BOM error'}: ${e.detail || e.code || 'unknown'}`);
+  // We pass the location geohash and let the proxy try safe variants.
+  async function bomForecastHourly(geohash){
+    const gh = String(geohash || '');
+    const url = `${BOM_BASE}/locations/${encodeURIComponent(gh)}/forecasts/hourly`;
+    const json = await fetchJson(url);
+    if (json?.errors?.length) {
+      const e = json.errors[0];
+      throw new Error(`${e.title || 'BOM error'}: ${e.detail || e.code || 'unknown'}`);
+    }
+    return json;
   }
-  return json;
-}
 
   async function loadData(){
     const st = els.stateFilter.value;
     const parks = (st === 'ALL') ? PARKS : PARKS.filter(p => p.state === st);
-    warningsLoadPromise = loadWarnings();
-    warningsLoadPromise.then(() => {
-      if (!allRows.length) return;
-      allRows.forEach(r => applyWarningsToRow(r));
-      scheduleRender();
-    });
+    warningsById = new Map();
+    warningDetailCache.clear();
 
     const tz = getDisplayTimeZone();
     const mode = getHourHeaderMode();
@@ -1798,11 +1708,12 @@ async function bomForecastHourly(geohash){
       const gh = String(geohash || '');
       if (weatherByGeohash.has(gh)) return weatherByGeohash.get(gh);
       const promise = (async () => {
-        const [obs, hourly] = await Promise.all([
+        const [obs, hourly, warnings] = await Promise.all([
           bomObservations(gh),
           bomForecastHourly(gh).catch(() => null),
+          bomLocationWarnings(gh).catch(() => []),
         ]);
-        return { obs, hourly };
+        return { obs, hourly, warnings };
       })();
       weatherByGeohash.set(gh, promise);
       promise.catch(() => {
@@ -1832,7 +1743,7 @@ async function bomForecastHourly(geohash){
           if (!loc?.geohash) throw new Error('No BOM match');
 
           // Load current observations + hourly forecasts (best available gust forecast from BOM API)
-          const { obs, hourly } = await getWeatherForGeohash(loc.geohash);
+          const { obs, hourly, warnings } = await getWeatherForGeohash(loc.geohash);
 
           const d = obs?.data || {};
 
@@ -1840,6 +1751,7 @@ async function bomForecastHourly(geohash){
           row.stationName = d?.station?.name ?? null;
           row.stationId = d?.station?.bom_id ?? null;
           row.issueTime = obs?.metadata?.issue_time ?? obs?.metadata?.response_timestamp ?? null;
+          row.weatherWarnings = Array.isArray(warnings) ? warnings : [];
 
           // Forecast picks (BOM hourly)
           // We map hourly items into a simple list: {time, gust}
@@ -1902,9 +1814,8 @@ async function bomForecastHourly(geohash){
           row.loaded = true;
           row.error = (e && e.message) ? e.message : 'Failed to load';
           row.severity = 'none';
+          row.weatherWarnings = [];
         }
-
-        applyWarningsToRow(row);
         results.push(row);
         allRows = results;
         scheduleRender();

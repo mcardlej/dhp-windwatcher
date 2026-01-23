@@ -28,17 +28,18 @@ export default {
     const isObs = /^\/v1\/locations\/[a-z0-9]+\/observations$/i.test(path);
     const isF3 = /^\/v1\/locations\/[a-z0-9]+\/forecasts\/3-hourly$/i.test(path);
     const isHourly = /^\/v1\/locations\/[a-z0-9]+\/forecasts\/hourly$/i.test(path);
+    const isLocationWarnings = /^\/v1\/locations\/[a-z0-9]+\/warnings\/?$/i.test(path);
     const isWarnings = /^\/v1\/warnings\/?$/i.test(path);
-    const isWarningDetail = /^\/v1\/warnings\/[a-z0-9]+\/?$/i.test(path);
+    const isWarningDetail = /^\/v1\/warnings\/[a-z0-9_-]+\/?$/i.test(path);
 
-    if (!isLocations && !isObs && !isF3 && !isHourly && !isWarnings && !isWarningDetail) {
+    if (!isLocations && !isObs && !isF3 && !isHourly && !isLocationWarnings && !isWarnings && !isWarningDetail) {
       return new Response("Forbidden path", { status: 403, headers: cors() });
     }
 
     // /v1/locations and /v1/warnings don't use location geohashes
     if (isLocations || isWarnings || isWarningDetail) return await upstream(target);
 
-    // For obs/forecasts: try variants (as-is, then shorten)
+    // For obs/forecasts/location warnings: try variants (as-is, then shorten)
     const variants = buildVariants(target);
     let lastRes = null;
 
@@ -98,7 +99,7 @@ async function upstream(targetUrl) {
   const path = targetUrl.pathname || "";
   const ttl =
     path === "/v1/locations" ? 60 * 60 * 12 :
-    /^\/v1\/warnings\/?/i.test(path) ? 60 :
+    /\/warnings(\/|$)/i.test(path) ? 60 :
     /\/observations$/i.test(path) ? 60 * 5 :
     /\/forecasts\/hourly$/i.test(path) ? 60 * 10 :
     /\/forecasts\/3-hourly$/i.test(path) ? 60 * 30 :
