@@ -95,6 +95,10 @@
     .toggle.danger input:checked + .dot::after{background:#fff}
     .toggle.danger.active{border-color:rgba(217,45,32,.55); color:var(--danger)}
 
+    .toggle.wx input:checked + .dot{background:var(--danger)}
+    .toggle.wx input:checked + .dot::after{background:#fff}
+    .toggle.wx.active{border-color:rgba(217,45,32,.55); color:var(--danger)}
+
     .card{background:var(--card); border:1px solid var(--line); border-radius:16px; overflow-x:auto; overflow-y:hidden;}
     table{width:100%; border-collapse:collapse;}
     th,td{padding:10px 12px; border-bottom:1px solid var(--line); font-size:13px; vertical-align:top}
@@ -127,8 +131,8 @@
     .badge{display:inline-flex; gap:6px; align-items:center; font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); white-space:nowrap; flex:0 0 auto}
     .badge.warning{border-color:rgba(217,119,6,.55); color:var(--warning)}
     .badge.danger{border-color:rgba(217,45,32,.55); color:var(--danger)}
-    .weather-warning-btn{display:inline-flex; align-items:center; gap:6px; border-radius:999px; border:1px solid var(--wxBorder); background:var(--wxBg); color:var(--wx); padding:3px 8px; font-size:11px; font-weight:700; cursor:pointer; flex:0 0 auto}
-    .weather-warning-btn:hover{border-color:#8aa4d6;}
+    .weather-warning-btn{display:inline-flex; align-items:center; gap:6px; border-radius:999px; border:1px solid rgba(217,45,32,.55); background:var(--dangerFlashBg); color:var(--danger); padding:3px 8px; font-size:11px; font-weight:700; cursor:pointer; flex:0 0 auto}
+    .weather-warning-btn:hover{border-color:rgba(217,45,32,.85);}
     .weather-warning-btn:focus-visible{outline:3px solid rgba(138,164,214,.35); outline-offset:2px;}
     .weather-warning-btn svg{width:14px; height:14px; display:block;}
     .weather-warning-count{font-weight:700; font-size:11px;}
@@ -647,6 +651,7 @@
   // Filter toggles (live in the stats row)
   let showWarningParks = false;
   let showDangerParks = false;
+  let showWeatherWarnings = false;
 
   let darkModeEnabled = false;
 
@@ -691,6 +696,7 @@
       text: els.textFilter.value,
       showWarning: !!showWarningParks,
       showDanger: !!showDangerParks,
+      showWeatherWarnings: !!showWeatherWarnings,
       darkMode: !!darkModeEnabled,
       sortKey: sortKey,
       sortDir: sortDir,
@@ -728,6 +734,7 @@
     // Toggles
     if (typeof p.showWarning === 'boolean') showWarningParks = p.showWarning;
     if (typeof p.showDanger === 'boolean') showDangerParks = p.showDanger;
+    if (typeof p.showWeatherWarnings === 'boolean') showWeatherWarnings = p.showWeatherWarnings;
     if (typeof p.darkMode === 'boolean') darkModeEnabled = p.darkMode;
 
     // Sort
@@ -1106,6 +1113,10 @@
         if (showDangerParks && !showWarningParks) return r.severity === 'danger';
         // warning (includes danger)
         return r.severity === 'warning' || r.severity === 'danger';
+      })
+      .filter(r => {
+        if (!showWeatherWarnings) return true;
+        return Array.isArray(r.weatherWarnings) && r.weatherWarnings.length > 0;
       });
 
     return sortRows(rows);
@@ -1117,6 +1128,7 @@
     const warning = rows.filter(r => r.severity === 'warning').length;
     const ok = rows.filter(r => r.loaded && (r.severity === 'ok')).length;
     const missing = rows.filter(r => r.loaded && r.severity === 'none').length;
+    const weatherWarn = rows.filter(r => Array.isArray(r.weatherWarnings) && r.weatherWarnings.length > 0).length;
 
     els.stats.innerHTML = [
       `<span class="chip"><b>${total}</b> parks</span>`,
@@ -1124,6 +1136,7 @@
       `<span class="chip"><b>${missing}</b> no gust data</span>`,
       `<span class="chip"><b style="color:var(--warning)">${warning}</b> warning &gt;= ${WARNING_KMH}</span>`,
       `<span class="chip"><b style="color:var(--danger)">${danger}</b> danger &gt;= ${DANGER_KMH}</span>`,
+      `<span class="chip"><b style="color:var(--danger)">${weatherWarn}</b> weather warnings</span>`,
       `<label class="toggle warn ${showWarningParks ? 'active' : ''}" style="margin-left:4px">
          <input id="showWarning" type="checkbox" ${showWarningParks ? 'checked' : ''} />
          <span class="dot"></span>
@@ -1133,6 +1146,11 @@
          <input id="showDanger" type="checkbox" ${showDangerParks ? 'checked' : ''} />
          <span class="dot"></span>
          danger
+       </label>`,
+      `<label class="toggle wx ${showWeatherWarnings ? 'active' : ''}">
+         <input id="showWxWarnings" type="checkbox" ${showWeatherWarnings ? 'checked' : ''} />
+         <span class="dot"></span>
+         weather warnings
        </label>`
     ].join('');
   }
@@ -1725,6 +1743,7 @@ async function bomForecastHourly(geohash){
     // Preserve any user state (self-tests should be side-effect free)
     const prevWarn = showWarningParks;
     const prevDanger = showDangerParks;
+    const prevWeather = showWeatherWarnings;
     const prevState = els.stateFilter.value;
     const prevRegion = els.regionFilter.value;
     const prevText = els.textFilter.value;
@@ -1760,7 +1779,7 @@ async function bomForecastHourly(geohash){
       els.regionFilter.value = 'ALL';
       els.textFilter.value = '';
 
-      showWarningParks = false; showDangerParks = false;
+      showWarningParks = false; showDangerParks = false; showWeatherWarnings = false;
       assert('filter off shows all', filteredRows().length === 3);
 
       showWarningParks = true; showDangerParks = false;
@@ -1779,6 +1798,7 @@ async function bomForecastHourly(geohash){
     } finally {
       showWarningParks = prevWarn;
       showDangerParks = prevDanger;
+      showWeatherWarnings = prevWeather;
       els.stateFilter.value = prevState;
       els.regionFilter.value = prevRegion;
       els.textFilter.value = prevText;
@@ -1929,6 +1949,13 @@ async function bomForecastHourly(geohash){
 
     if (t.id === 'showDanger') {
       showDangerParks = !!t.checked;
+      savePrefs();
+      render();
+      return;
+    }
+
+    if (t.id === 'showWxWarnings') {
+      showWeatherWarnings = !!t.checked;
       savePrefs();
       render();
       return;
