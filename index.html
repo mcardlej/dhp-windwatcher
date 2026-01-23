@@ -17,6 +17,9 @@
       --dangerFlashShadow: rgba(217,45,32,.35);
       --warning:#d97706;
       --ok:#0f766e;
+      --wx:#2563eb;
+      --wxBg: rgba(37,99,235,.12);
+      --wxBorder: rgba(37,99,235,.35);
       --chip:#f0f3f9;
     }
 
@@ -31,6 +34,9 @@
       --dangerFlashShadow: rgba(249,112,102,.40);
       --warning:#fbbf24;
       --ok:#2dd4bf;
+      --wx:#60a5fa;
+      --wxBg: rgba(96,165,250,.18);
+      --wxBorder: rgba(96,165,250,.4);
       --chip:#0f172a;
       color-scheme:dark;
     }
@@ -121,6 +127,11 @@
     .badge{display:inline-flex; gap:6px; align-items:center; font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); white-space:nowrap; flex:0 0 auto}
     .badge.warning{border-color:rgba(217,119,6,.55); color:var(--warning)}
     .badge.danger{border-color:rgba(217,45,32,.55); color:var(--danger)}
+    .weather-warning-btn{display:inline-flex; align-items:center; gap:6px; border-radius:999px; border:1px solid var(--wxBorder); background:var(--wxBg); color:var(--wx); padding:3px 8px; font-size:11px; font-weight:700; cursor:pointer; flex:0 0 auto}
+    .weather-warning-btn:hover{border-color:#8aa4d6;}
+    .weather-warning-btn:focus-visible{outline:3px solid rgba(138,164,214,.35); outline-offset:2px;}
+    .weather-warning-btn svg{width:14px; height:14px; display:block;}
+    .weather-warning-count{font-weight:700; font-size:11px;}
     .badge[data-tooltip]{position:relative; cursor:help;}
     .badge[data-tooltip]::after{
       content: attr(data-tooltip);
@@ -277,6 +288,25 @@
     .modal-body p{margin:0 0 10px; color:var(--muted); font-size:13px; line-height:1.45}
     .modal-body ul{margin:8px 0 0 18px; padding:0; color:var(--muted); font-size:13px; line-height:1.45}
     .modal-body li{margin:6px 0}
+
+    .warning-list{display:flex; flex-direction:column; gap:12px; margin-top:10px;}
+    .warning-card{background:var(--chip); border:1px solid var(--line); border-radius:14px; padding:12px;}
+    .warning-card-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;}
+    .warning-card-title{font-size:14px; font-weight:800; margin:0;}
+    .warning-card-area{font-size:12px; color:var(--muted); margin-top:4px;}
+    .warning-chip-row{display:flex; flex-wrap:wrap; gap:6px;}
+    .warning-chip{display:inline-flex; align-items:center; border-radius:999px; padding:3px 8px; font-size:11px; border:1px solid var(--line); color:var(--muted); text-transform:capitalize;}
+    .warning-chip.type{border-color:var(--wxBorder); color:var(--wx); background:var(--wxBg);}
+    .warning-chip.group-major{border-color:rgba(217,45,32,.4); color:var(--danger);}
+    .warning-chip.group-moderate{border-color:rgba(217,119,6,.4); color:var(--warning);}
+    .warning-chip.group-minor{border-color:rgba(15,118,110,.35); color:var(--ok);}
+    .warning-meta{display:flex; flex-wrap:wrap; gap:10px; font-size:12px; color:var(--muted); margin-top:8px;}
+    .warning-message{margin-top:10px; font-size:13px; line-height:1.45; color:var(--text);}
+    .warning-message h1,.warning-message h2,.warning-message h3,.warning-message h4{margin:8px 0 6px; font-size:13px; font-weight:800;}
+    .warning-message p{margin:6px 0; color:var(--text);}
+    .warning-message ul,.warning-message ol{margin:6px 0 6px 18px; color:var(--text);}
+    .warning-message li{margin:6px 0;}
+    .warning-message img{max-width:100%; height:auto; border-radius:10px; border:1px solid var(--line);}
 </style>
 </head>
 <body>
@@ -407,6 +437,18 @@
     </div>
   </div>
 
+  <!-- Weather warning modal -->
+  <div id="warningModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="warningTitle">
+    <div class="modal-backdrop" data-close="1"></div>
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="modal-title" id="warningTitle">Weather warnings</div>
+        <button id="warningClose" class="icon-btn modal-close" type="button">Close</button>
+      </div>
+      <div class="modal-body" id="warningBody"></div>
+    </div>
+  </div>
+
 <script>
   // IMPORTANT: Canvas blocks direct calls to BOM. This app uses your Cloudflare Worker.
   const PROXY_BASE = "https://bom-proxy.mcardlej.workers.dev";
@@ -420,6 +462,17 @@
   const DANGER_KMH  = 63;
   const WARNING_TOOLTIP = 'Trees 13m or greater: Advise all park occupants to limit time spent in fall zones with no protection factors';
   const DANGER_TOOLTIP = 'Trees 6-12m: Advise all park occupants to limit time spent in fall zones with no protection factors. Trees 13m or greater: Create exclusion zone of tree hight +50% for fall zones with no protection factors';
+  const STATE_NAMES = {
+    NSW: 'new south wales',
+    ACT: 'australian capital territory',
+    VIC: 'victoria',
+    TAS: 'tasmania',
+    QLD: 'queensland',
+    SA: 'south australia',
+    NT: 'northern territory',
+    WA: 'western australia',
+  };
+  const STATE_CODE_SET = new Set(Object.keys(STATE_NAMES).map(s => s.toLowerCase()));
   // ==================
 
   // --- Park list
@@ -552,11 +605,21 @@
     infoBtn: document.getElementById('infoBtn'),
     infoModal: document.getElementById('infoModal'),
     infoClose: document.getElementById('infoClose'),
+    warningModal: document.getElementById('warningModal'),
+    warningTitle: document.getElementById('warningTitle'),
+    warningBody: document.getElementById('warningBody'),
+    warningClose: document.getElementById('warningClose'),
     darkModeToggle: document.getElementById('darkModeToggle'),
   };
 
   const cache = { locations: new Map() };
   const LOC_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12h, matches worker /locations cache
+  let warningsList = [];
+  let warningsById = new Map();
+  let warningsReady = false;
+  let warningsLoadPromise = null;
+  const warningDetailCache = new Map();
+  let warningModalToken = 0;
   let allRows = [];
   let isLoading = false;
   let tableState = 'blank';
@@ -843,6 +906,104 @@
       .replaceAll("'",'&#039;');
   }
 
+  function escapeRegex(s){
+    return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function normalizeText(s){
+    return String(s || '')
+      .toLowerCase()
+      .replace(/&/g, ' and ')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .replace(/\s+/g, ' ');
+  }
+
+  function containsTerm(haystack, term){
+    if (!haystack || !term) return false;
+    const re = new RegExp(`(?:^|\\s)${escapeRegex(term)}(?:\\s|$)`);
+    return re.test(haystack);
+  }
+
+  function formatWarningType(type){
+    if (!type) return '';
+    const t = String(type).replace(/_/g, ' ').toLowerCase();
+    return t.replace(/\b\w/g, (m) => m.toUpperCase());
+  }
+
+  function formatDateTime(ts, state){
+    if (!ts) return '—';
+    const d = new Date(ts);
+    if (!Number.isFinite(d.getTime())) return '—';
+    try {
+      const opts = { dateStyle: 'medium', timeStyle: 'short' };
+      const tz = timeZoneForState(state);
+      if (tz) opts.timeZone = tz;
+      return new Intl.DateTimeFormat('en-AU', opts).format(d);
+    } catch {
+      return d.toLocaleString();
+    }
+  }
+
+  function sanitizeWarningHtml(raw){
+    const tpl = document.createElement('template');
+    tpl.innerHTML = String(raw || '');
+
+    const allowedTags = new Set([
+      'p','br','strong','b','em','i','ul','ol','li',
+      'h1','h2','h3','h4','h5','h6','table','thead','tbody',
+      'tr','th','td','a','img','div','span','small','hr','pre','code'
+    ]);
+
+    const allowedAttrs = {
+      a: new Set(['href','title']),
+      img: new Set(['src','alt','width','height']),
+    };
+
+    tpl.content.querySelectorAll('*').forEach(el => {
+      const tag = el.tagName.toLowerCase();
+      if (!allowedTags.has(tag)) {
+        el.replaceWith(document.createTextNode(el.textContent || ''));
+        return;
+      }
+
+      [...el.attributes].forEach(attr => {
+        const name = attr.name.toLowerCase();
+        const value = attr.value || '';
+
+        if (name.startsWith('on') || name === 'style') {
+          el.removeAttribute(attr.name);
+          return;
+        }
+
+        const allowSet = allowedAttrs[tag];
+        if (allowSet && allowSet.has(name)) {
+          if (tag === 'a' && name === 'href' && !/^https?:/i.test(value)) {
+            el.removeAttribute(attr.name);
+          }
+          if (tag === 'img' && name === 'src' && !/^https?:/i.test(value)) {
+            el.removeAttribute(attr.name);
+          }
+          return;
+        }
+
+        el.removeAttribute(attr.name);
+      });
+
+      if (tag === 'a') {
+        el.setAttribute('target', '_blank');
+        el.setAttribute('rel', 'noopener');
+      }
+      if (tag === 'img') {
+        el.setAttribute('loading', 'lazy');
+        el.setAttribute('referrerpolicy', 'no-referrer');
+        if (!el.getAttribute('alt')) el.setAttribute('alt', 'Warning image');
+      }
+    });
+
+    return tpl.innerHTML;
+  }
+
   function getSortValue(row, key){
     switch(key){
       case 'name': return row.name;
@@ -981,6 +1142,27 @@
     return '';
   }
 
+  function renderWeatherWarningButton(row){
+    const warnings = Array.isArray(row.weatherWarnings) ? row.weatherWarnings : [];
+    const ids = warnings.map(w => w?.id).filter(Boolean);
+    if (!ids.length) return '';
+    const count = ids.length;
+    const label = `Weather warning${count > 1 ? 's' : ''} for ${row.name} (${count})`;
+    const idsAttr = escapeHtml(ids.join(','));
+    const nameAttr = escapeHtml(row.name || '');
+    const stateAttr = escapeHtml(row.state || '');
+    return `
+      <button class="weather-warning-btn" type="button" data-warning-ids="${idsAttr}" data-park-name="${nameAttr}" data-park-state="${stateAttr}" aria-label="${escapeHtml(label)}" aria-haspopup="dialog" aria-controls="warningModal" title="${escapeHtml(label)}">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M10.29 3.86 1.82 18a1 1 0 0 0 .85 1.5h18.66a1 1 0 0 0 .85-1.5L13.71 3.86a1 1 0 0 0-1.72 0z"></path>
+          <line x1="12" y1="9" x2="12" y2="13"></line>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+        <span class="weather-warning-count">${count}</span>
+      </button>
+    `;
+  }
+
   function renderTable(rows){
     const slots = ensureForecastSlots();
     if (!rows.length) {
@@ -1034,6 +1216,7 @@
     const isAllMode = (els.stateFilter?.value === 'ALL');
     els.tbody.innerHTML = rows.map(r => {
       const badge = badgeFor(r.severity);
+      const weatherWarningBtn = renderWeatherWarningButton(r);
       const updatedText = r.issueTime ? timeAgo(r.issueTime) : '—';
       const parkTz = isAllMode ? (timeZoneForState(r.state) || getDisplayTimeZone()) : null;
 
@@ -1076,6 +1259,7 @@
               <div class="park-name">
                 <b>${escapeHtml(r.name)}</b>
                 ${badge}
+                ${weatherWarningBtn}
               </div>
             </div>
             ${errorLine}
@@ -1175,6 +1359,109 @@
     }
   }
 
+  async function bomWarnings(){
+    const url = `${BOM_BASE}/warnings`;
+    const json = await fetchJson(url);
+    if (!json || !Array.isArray(json.data)) {
+      throw new Error('BOM warnings payload missing data[]');
+    }
+    return json.data;
+  }
+
+  async function bomWarningDetail(id){
+    const url = `${BOM_BASE}/warnings/${encodeURIComponent(id)}`;
+    const json = await fetchJson(url);
+    if (json?.errors?.length) {
+      const e = json.errors[0];
+      throw new Error(`${e.title || 'BOM error'}: ${e.detail || e.code || 'unknown'}`);
+    }
+    return json;
+  }
+
+  function setWarnings(list){
+    warningsList = Array.isArray(list) ? list : [];
+    warningsList.forEach(w => {
+      if (w && typeof w === 'object') {
+        w.__normText = normalizeText(`${w.title || ''} ${w.short_title || ''}`);
+      }
+    });
+    warningsById = new Map(warningsList.map(w => [w.id, w]));
+    warningsReady = true;
+  }
+
+  async function loadWarnings(){
+    warningsReady = false;
+    try {
+      const list = await bomWarnings();
+      setWarnings(list);
+    } catch {
+      setWarnings([]);
+    }
+    return warningsList;
+  }
+
+  function buildWarningTerms(row){
+    const terms = new Set();
+    const candidates = [];
+    if (row.searchTerm) candidates.push(row.searchTerm);
+    if (row.name) candidates.push(row.name);
+    if (row.name && row.name.includes(',')) {
+      row.name.split(',').forEach(part => candidates.push(part));
+    }
+
+    candidates.forEach(c => {
+      const clean = normalizeText(c);
+      if (!clean) return;
+      if (clean.length < 3) return;
+      if (STATE_CODE_SET.has(clean)) return;
+      terms.add(clean);
+    });
+
+    return Array.from(terms);
+  }
+
+  function warningMatchesPark(warn, row, terms){
+    if (!warn || !row) return false;
+    const warnStates = Array.isArray(warn.states) ? warn.states : (warn.state ? [warn.state] : []);
+    if (row.state && warnStates.length) {
+      const matchState = warnStates.some(s => String(s).toUpperCase() === row.state);
+      if (!matchState) return false;
+    }
+
+    const text = warn.__normText || normalizeText(`${warn.title || ''} ${warn.short_title || ''}`);
+    if (terms.some(term => containsTerm(text, term))) return true;
+
+    const stateName = STATE_NAMES[row.state] || '';
+    if (stateName && containsTerm(text, stateName)) return true;
+
+    return false;
+  }
+
+  function applyWarningsToRow(row){
+    if (!row) return;
+    if (!warningsReady || !warningsList.length) {
+      row.weatherWarnings = [];
+      return;
+    }
+    const terms = buildWarningTerms(row);
+    if (!terms.length) {
+      row.weatherWarnings = [];
+      return;
+    }
+    row.weatherWarnings = warningsList.filter(w => warningMatchesPark(w, row, terms));
+  }
+
+  function getWarningDetail(id){
+    if (!id) return Promise.resolve(null);
+    const cached = warningDetailCache.get(id);
+    if (cached) return cached;
+    const promise = bomWarningDetail(id)
+      .then(json => json?.data || null)
+      .catch(() => null);
+    warningDetailCache.set(id, promise);
+    return promise;
+  }
+
   async function bomSearchLocation(searchTerm, state){
     const key = `${searchTerm}|${state}`;
     const now = Date.now();
@@ -1239,6 +1526,12 @@ async function bomForecastHourly(geohash){
   async function loadData(){
     const st = els.stateFilter.value;
     const parks = (st === 'ALL') ? PARKS : PARKS.filter(p => p.state === st);
+    warningsLoadPromise = loadWarnings();
+    warningsLoadPromise.then(() => {
+      if (!allRows.length) return;
+      allRows.forEach(r => applyWarningsToRow(r));
+      scheduleRender();
+    });
 
     const tz = getDisplayTimeZone();
     const mode = getHourHeaderMode();
@@ -1286,6 +1579,7 @@ async function bomForecastHourly(geohash){
           stationId: null,
           issueTime: null,
           severity: 'none',
+          weatherWarnings: [],
           error: null,
         };
 
@@ -1366,6 +1660,7 @@ async function bomForecastHourly(geohash){
           row.severity = 'none';
         }
 
+        applyWarningsToRow(row);
         results.push(row);
         allRows = results;
         scheduleRender();
@@ -1478,6 +1773,96 @@ async function bomForecastHourly(geohash){
     }
   }
 
+  function renderWarningModal(parkName, state, warnings, details){
+    const detailById = new Map();
+    (details || []).forEach(d => { if (d?.id) detailById.set(d.id, d); });
+
+    const tzNote = timeZoneForState(state) ? `${state} local time` : 'local time';
+    const summary = `<p class="small muted">Warnings provided by BOM. Times shown in ${tzNote}.</p>`;
+
+    const cards = (warnings || []).map(w => {
+      const detail = detailById.get(w.id) || {};
+      const shortTitle = detail.short_title || w.short_title || w.title || 'Weather warning';
+      const areaTitle = detail.title || w.title || '';
+      const group = String(w.warning_group_type || '').toLowerCase();
+      const groupClass = group ? `group-${group.replace(/[^a-z0-9-]/g, '')}` : '';
+      const typeLabel = formatWarningType(detail.type || w.type);
+      const phase = detail.phase || w.phase || '';
+
+      const chips = [];
+      if (typeLabel) chips.push(`<span class="warning-chip type">${escapeHtml(typeLabel)}</span>`);
+      if (group) chips.push(`<span class="warning-chip ${groupClass}">${escapeHtml(group)}</span>`);
+
+      const issue = detail.issue_time || w.issue_time || '';
+      const expiry = detail.expiry_time || w.expiry_time || '';
+      const metaParts = [];
+      if (issue) metaParts.push(`Issued ${formatDateTime(issue, state)}`);
+      if (expiry) metaParts.push(`Expires ${formatDateTime(expiry, state)}`);
+      if (phase) metaParts.push(`Status: ${phase}`);
+      const metaHtml = metaParts.length
+        ? metaParts.map(m => `<span>${escapeHtml(m)}</span>`).join('')
+        : '<span>Timing details not available.</span>';
+
+      const messageHtml = detail.message ? sanitizeWarningHtml(detail.message) : '';
+      const messageBlock = messageHtml
+        ? `<div class="warning-message">${messageHtml}</div>`
+        : `<div class="warning-message muted">No detailed message is available for this warning.</div>`;
+
+      return `
+        <article class="warning-card">
+          <div class="warning-card-head">
+            <div>
+              <div class="warning-card-title">${escapeHtml(shortTitle)}</div>
+              ${areaTitle ? `<div class="warning-card-area">${escapeHtml(areaTitle)}</div>` : ''}
+            </div>
+            <div class="warning-chip-row">${chips.join('')}</div>
+          </div>
+          <div class="warning-meta">${metaHtml}</div>
+          ${messageBlock}
+        </article>
+      `;
+    }).join('');
+
+    els.warningBody.innerHTML = `
+      ${summary}
+      <div class="warning-list">
+        ${cards || '<div class="empty-state"><div class="empty-title">No active warnings for this park.</div><div class="small muted">Warnings are refreshed with the BOM feed.</div></div>'}
+      </div>
+    `;
+
+    if (els.warningTitle) {
+      els.warningTitle.textContent = `Weather warnings for ${parkName}`;
+    }
+  }
+
+  function openWarningModal(parkName, state, warningIds){
+    const ids = Array.isArray(warningIds) ? warningIds : [];
+    if (!ids.length) return;
+
+    warningModalToken += 1;
+    const token = warningModalToken;
+    const warnings = ids.map(id => warningsById.get(id)).filter(Boolean);
+
+    if (els.warningTitle) {
+      els.warningTitle.textContent = `Weather warnings for ${parkName}`;
+    }
+    els.warningBody.innerHTML = `
+      <div class="loading-state" role="status" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
+        <div class="loading-title">Loading warnings...</div>
+        <div class="small muted">Fetching details from BOM.</div>
+      </div>
+    `;
+    els.warningModal.classList.add('open');
+
+    Promise.all(warnings.map(w => getWarningDetail(w.id))).then(details => {
+      if (token !== warningModalToken) return;
+      renderWarningModal(parkName, state, warnings, details);
+    });
+  }
+
+  function closeWarningModal(){ els.warningModal.classList.remove('open'); }
+
   // Events
   function openInfo(){ els.infoModal.classList.add('open'); }
   function closeInfo(){ els.infoModal.classList.remove('open'); }
@@ -1487,8 +1872,14 @@ async function bomForecastHourly(geohash){
   els.infoModal.addEventListener('click', (e) => {
     if (e.target && e.target.dataset && e.target.dataset.close) closeInfo();
   });
+  els.warningClose.addEventListener('click', closeWarningModal);
+  els.warningModal.addEventListener('click', (e) => {
+    if (e.target && e.target.dataset && e.target.dataset.close) closeWarningModal();
+  });
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && els.infoModal.classList.contains('open')) closeInfo();
+    if (e.key !== 'Escape') return;
+    if (els.infoModal.classList.contains('open')) closeInfo();
+    if (els.warningModal.classList.contains('open')) closeWarningModal();
   });
 
   if (els.darkModeToggle) {
@@ -1524,6 +1915,18 @@ async function bomForecastHourly(geohash){
       render();
       return;
     }
+  });
+
+  // Weather warning icons live in the table body (event delegation).
+  els.tbody.addEventListener('click', (e) => {
+    const btn = e.target.closest('.weather-warning-btn');
+    if (!btn) return;
+    const ids = String(btn.dataset.warningIds || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+    if (!ids.length) return;
+    openWarningModal(btn.dataset.parkName || 'Park', btn.dataset.parkState || '', ids);
   });
 
   els.stateFilter.addEventListener('change', () => {
