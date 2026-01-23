@@ -65,7 +65,10 @@
 
     .controls{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:12px 0 14px; justify-content:space-between;}
     .controls-left{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
-    .controls-right{display:flex; gap:10px; align-items:center}
+    .controls-right{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+    .filter-summary{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:4px 0 12px;}
+    .filter-chip{background:var(--chip); border:1px dashed var(--line); border-radius:999px; padding:4px 8px; font-size:12px; color:var(--muted)}
+    .filter-chip b{color:var(--text); font-weight:700}
 
     select,input,button{background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:13px;}
     input{min-width:220px;}
@@ -365,10 +368,29 @@
 
         <label class="small">Search</label>
         <input id="textFilter" placeholder="Filter by park name…" />
+
+        <label class="small">Severity</label>
+        <select id="severityFilter">
+          <option value="all">All</option>
+          <option value="warning">Warning+ (includes danger)</option>
+          <option value="danger">Danger only</option>
+        </select>
+
+        <label class="toggle wx" title="Filter to parks with active weather alerts">
+          <input id="showWxWarnings" type="checkbox" />
+          <span class="dot"></span>
+          <svg class="toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10.29 3.86 1.82 18a1 1 0 0 0 .85 1.5h18.66a1 1 0 0 0 .85-1.5L13.71 3.86a1 1 0 0 0-1.72 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          weather alerts only
+        </label>
       </div>
 
       <div class="controls-right">
         <span id="status" class="small"></span>
+        <button id="resetFiltersBtn" type="button">Reset filters</button>
         <button id="refreshBtn" type="button">↻ Refresh</button>
         <button id="infoBtn" class="icon-btn" type="button" aria-haspopup="dialog" aria-controls="infoModal" title="Information" aria-label="Information">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -391,6 +413,8 @@
         </label>
       </div>
     </div>
+
+    <div class="filter-summary" id="filterSummary"></div>
 
     <div class="stats" id="stats"></div>
 
@@ -610,10 +634,14 @@
     stateFilter: document.getElementById('stateFilter'),
     regionFilter: document.getElementById('regionFilter'),
     textFilter: document.getElementById('textFilter'),
+    severityFilter: document.getElementById('severityFilter'),
+    showWxWarnings: document.getElementById('showWxWarnings'),
     refreshBtn: document.getElementById('refreshBtn'),
+    resetFiltersBtn: document.getElementById('resetFiltersBtn'),
     status: document.getElementById('status'),
     tbody: document.getElementById('tbody'),
     stats: document.getElementById('stats'),
+    filterSummary: document.getElementById('filterSummary'),
     infoBtn: document.getElementById('infoBtn'),
     infoModal: document.getElementById('infoModal'),
     infoClose: document.getElementById('infoClose'),
@@ -622,6 +650,14 @@
     warningBody: document.getElementById('warningBody'),
     warningClose: document.getElementById('warningClose'),
     darkModeToggle: document.getElementById('darkModeToggle'),
+  };
+
+  const DEFAULT_FILTERS = {
+    state: els.stateFilter?.options?.[0]?.value || 'ALL',
+    region: els.regionFilter?.options?.[0]?.value || 'ALL',
+    text: '',
+    severity: 'all',
+    alertsOnly: false,
   };
 
   const cache = { locations: new Map() };
@@ -649,9 +685,8 @@
   };
   const SORT_KEYS = new Set(['name', 'gustKmh']);
 
-  // Filter toggles (live in the stats row)
-  let showWarningParks = false;
-  let showDangerParks = false;
+  // Filters
+  let severityFilter = 'all'; // 'all' | 'warning' | 'danger'
   let showWeatherWarnings = false;
 
   let darkModeEnabled = false;
@@ -695,8 +730,7 @@
       state: els.stateFilter.value,
       region: els.regionFilter.value,
       text: els.textFilter.value,
-      showWarning: !!showWarningParks,
-      showDanger: !!showDangerParks,
+      severity: severityFilter,
       showWeatherWarnings: !!showWeatherWarnings,
       darkMode: !!darkModeEnabled,
       sortKey: sortKey,
@@ -732,11 +766,23 @@
       els.textFilter.value = p.text;
     }
 
-    // Toggles
-    if (typeof p.showWarning === 'boolean') showWarningParks = p.showWarning;
-    if (typeof p.showDanger === 'boolean') showDangerParks = p.showDanger;
+    // Filters
+    if (typeof p.severity === 'string') {
+      const s = p.severity.toLowerCase();
+      severityFilter = (s === 'warning' || s === 'danger') ? s : 'all';
+    } else {
+      const warn = !!p.showWarning;
+      const danger = !!p.showDanger;
+      if (danger && !warn) severityFilter = 'danger';
+      else if (warn) severityFilter = 'warning';
+      else severityFilter = 'all';
+    }
     if (typeof p.showWeatherWarnings === 'boolean') showWeatherWarnings = p.showWeatherWarnings;
     if (typeof p.darkMode === 'boolean') darkModeEnabled = p.darkMode;
+
+    if (els.severityFilter) els.severityFilter.value = severityFilter;
+    if (els.showWxWarnings) els.showWxWarnings.checked = !!showWeatherWarnings;
+    syncWeatherToggle();
 
     // Sort
     if (p.sortKey === null) {
@@ -754,6 +800,12 @@
     if (darkModeEnabled) document.documentElement.setAttribute('data-theme', 'dark');
     else document.documentElement.removeAttribute('data-theme');
     if (els.darkModeToggle) els.darkModeToggle.checked = !!darkModeEnabled;
+  }
+
+  function syncWeatherToggle(){
+    if (!els.showWxWarnings) return;
+    const label = els.showWxWarnings.closest('.toggle');
+    if (label) label.classList.toggle('active', !!showWeatherWarnings);
   }
 
   function setStatus(msg){
@@ -1119,8 +1171,6 @@
     const rg = els.regionFilter.value;
     const q = els.textFilter.value.trim().toLowerCase();
 
-    const filterOn = showWarningParks || showDangerParks;
-
     const rows = allRows
       .map(r => {
         if (r.loaded) r.severity = rowLevel(r);
@@ -1130,10 +1180,9 @@
       .filter(r => (rg === 'ALL' ? true : r.rom === rg))
       .filter(r => (q ? r.name.toLowerCase().includes(q) : true))
       .filter(r => {
-        if (!filterOn) return true;
-        if (showDangerParks && !showWarningParks) return r.severity === 'danger';
-        // warning (includes danger)
-        return r.severity === 'warning' || r.severity === 'danger';
+        if (severityFilter === 'danger') return r.severity === 'danger';
+        if (severityFilter === 'warning') return r.severity === 'warning' || r.severity === 'danger';
+        return true;
       })
       .filter(r => {
         if (!showWeatherWarnings) return true;
@@ -1157,27 +1206,39 @@
       `<span class="chip"><b>${missing}</b> no gust data</span>`,
       `<span class="chip"><b style="color:var(--warning)">${warning}</b> warning &gt;= ${WARNING_KMH}</span>`,
       `<span class="chip"><b style="color:var(--danger)">${danger}</b> danger &gt;= ${DANGER_KMH}</span>`,
-      `<span class="chip"><b style="color:var(--danger)">${weatherWarn}</b> weather alerts</span>`,
-      `<label class="toggle warn ${showWarningParks ? 'active' : ''}" style="margin-left:4px">
-         <input id="showWarning" type="checkbox" ${showWarningParks ? 'checked' : ''} />
-         <span class="dot"></span>
-         warning
-       </label>`,
-      `<label class="toggle danger ${showDangerParks ? 'active' : ''}">
-         <input id="showDanger" type="checkbox" ${showDangerParks ? 'checked' : ''} />
-         <span class="dot"></span>
-         danger
-       </label>`,
-      `<label class="toggle wx ${showWeatherWarnings ? 'active' : ''}">
-         <input id="showWxWarnings" type="checkbox" ${showWeatherWarnings ? 'checked' : ''} />
-         <span class="dot"></span>
-         <svg class="toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-           <path d="M10.29 3.86 1.82 18a1 1 0 0 0 .85 1.5h18.66a1 1 0 0 0 .85-1.5L13.71 3.86a1 1 0 0 0-1.72 0z"></path>
-           <line x1="12" y1="9" x2="12" y2="13"></line>
-           <line x1="12" y1="17" x2="12.01" y2="17"></line>
-         </svg>
-         weather alerts
-       </label>`
+      `<span class="chip"><b style="color:var(--danger)">${weatherWarn}</b> weather alerts</span>`
+    ].join('');
+  }
+
+  function renderFilterSummary(){
+    if (!els.filterSummary) return;
+    const parts = [];
+    const stateVal = els.stateFilter.value;
+    const regionVal = els.regionFilter.value;
+    const textVal = els.textFilter.value.trim();
+    const regionLabel = els.regionFilter?.options?.[els.regionFilter.selectedIndex]?.text || regionVal;
+
+    if (stateVal !== DEFAULT_FILTERS.state) parts.push({ label: 'State', value: stateVal });
+    if (regionVal !== DEFAULT_FILTERS.region) parts.push({ label: 'Region', value: regionLabel });
+    if (textVal) parts.push({ label: 'Search', value: `"${textVal}"` });
+
+    if (severityFilter !== DEFAULT_FILTERS.severity) {
+      const sevLabel = severityFilter === 'warning'
+        ? 'Warning+ (includes danger)'
+        : 'Danger only';
+      parts.push({ label: 'Severity', value: sevLabel });
+    }
+
+    if (showWeatherWarnings) parts.push({ label: 'Alerts', value: 'Weather alerts only' });
+
+    if (!parts.length) {
+      els.filterSummary.innerHTML = '<span class="small muted">No filters applied.</span>';
+      return;
+    }
+
+    els.filterSummary.innerHTML = [
+      '<span class="small muted">Filters:</span>',
+      ...parts.map(p => `<span class="filter-chip"><b>${escapeHtml(p.label)}:</b> ${escapeHtml(p.value)}</span>`)
     ].join('');
   }
 
@@ -1327,9 +1388,36 @@
   function render(){
     const rows = filteredRows();
     renderStats(rows);
+    renderFilterSummary();
     updateHourHeaders();
     renderTable(rows);
     updateSortIndicators();
+  }
+
+  function resetFilters(){
+    const prevState = els.stateFilter.value;
+    els.stateFilter.value = DEFAULT_FILTERS.state;
+    els.regionFilter.value = DEFAULT_FILTERS.region;
+    els.textFilter.value = DEFAULT_FILTERS.text;
+    severityFilter = DEFAULT_FILTERS.severity;
+    showWeatherWarnings = DEFAULT_FILTERS.alertsOnly;
+
+    if (els.severityFilter) els.severityFilter.value = severityFilter;
+    if (els.showWxWarnings) els.showWxWarnings.checked = !!showWeatherWarnings;
+    syncWeatherToggle();
+
+    savePrefs();
+
+    const stateChanged = prevState !== els.stateFilter.value;
+    if (stateChanged) {
+      cache.locations.clear();
+      allRows = [];
+      render();
+      loadData();
+      return;
+    }
+
+    render();
   }
 
   let renderScheduled = false;
@@ -1767,8 +1855,7 @@ async function bomForecastHourly(geohash){
 
   function runSelfTests(){
     // Preserve any user state (self-tests should be side-effect free)
-    const prevWarn = showWarningParks;
-    const prevDanger = showDangerParks;
+    const prevSeverity = severityFilter;
     const prevWeather = showWeatherWarnings;
     const prevState = els.stateFilter.value;
     const prevRegion = els.regionFilter.value;
@@ -1805,25 +1892,21 @@ async function bomForecastHourly(geohash){
       els.regionFilter.value = 'ALL';
       els.textFilter.value = '';
 
-      showWarningParks = false; showDangerParks = false; showWeatherWarnings = false;
+      severityFilter = 'all'; showWeatherWarnings = false;
       assert('filter off shows all', filteredRows().length === 3);
 
-      showWarningParks = true; showDangerParks = false;
+      severityFilter = 'warning';
       assert('warning includes danger', filteredRows().length === 2);
 
-      showWarningParks = false; showDangerParks = true;
+      severityFilter = 'danger';
       assert('danger only', filteredRows().length === 1);
 
-      showWarningParks = true; showDangerParks = true;
-      assert('both toggles same as warning', filteredRows().length === 2);
-
-      showWarningParks = false; showDangerParks = false;
+      severityFilter = 'all';
       sortKey = 'gustKmh'; sortDir = 'desc';
       assert('sort numeric desc', filteredRows().map(r => r.name).join('') === 'ABC');
 
     } finally {
-      showWarningParks = prevWarn;
-      showDangerParks = prevDanger;
+      severityFilter = prevSeverity;
       showWeatherWarnings = prevWeather;
       els.stateFilter.value = prevState;
       els.regionFilter.value = prevRegion;
@@ -1961,33 +2044,6 @@ async function bomForecastHourly(geohash){
     setSort(th.dataset.key);
   });
 
-  // Toggles live inside the stats row (which re-renders). Use event delegation.
-  els.stats.addEventListener('change', (e) => {
-    const t = e.target;
-    if (!t) return;
-
-    if (t.id === 'showWarning') {
-      showWarningParks = !!t.checked;
-      savePrefs();
-      render();
-      return;
-    }
-
-    if (t.id === 'showDanger') {
-      showDangerParks = !!t.checked;
-      savePrefs();
-      render();
-      return;
-    }
-
-    if (t.id === 'showWxWarnings') {
-      showWeatherWarnings = !!t.checked;
-      savePrefs();
-      render();
-      return;
-    }
-  });
-
   // Weather alert icons live in the table body (event delegation).
   els.tbody.addEventListener('click', (e) => {
     const btn = e.target.closest('.weather-warning-btn');
@@ -1999,6 +2055,28 @@ async function bomForecastHourly(geohash){
     if (!ids.length) return;
     openWarningModal(btn.dataset.parkName || 'Park', btn.dataset.parkState || '', ids);
   });
+
+  if (els.severityFilter) {
+    els.severityFilter.addEventListener('change', () => {
+      const val = String(els.severityFilter.value || '').toLowerCase();
+      severityFilter = (val === 'warning' || val === 'danger') ? val : 'all';
+      savePrefs();
+      render();
+    });
+  }
+
+  if (els.showWxWarnings) {
+    els.showWxWarnings.addEventListener('change', (e) => {
+      showWeatherWarnings = !!e.target.checked;
+      syncWeatherToggle();
+      savePrefs();
+      render();
+    });
+  }
+
+  if (els.resetFiltersBtn) {
+    els.resetFiltersBtn.addEventListener('click', resetFilters);
+  }
 
   els.stateFilter.addEventListener('change', () => {
     savePrefs();
