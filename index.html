@@ -656,6 +656,24 @@
 
   let darkModeEnabled = false;
 
+  function getDefaultSelectValue(select){
+    if (!select) return '';
+    const selected = select.querySelector('option[selected]');
+    if (selected) return selected.value;
+    return select.options && select.options.length ? select.options[0].value : '';
+  }
+
+  const DEFAULT_FILTERS = {
+    state: getDefaultSelectValue(els.stateFilter),
+    region: getDefaultSelectValue(els.regionFilter),
+    text: '',
+    showWarning: false,
+    showDanger: false,
+    showWeatherWarnings: false,
+    sortKey: null,
+    sortDir: 'asc',
+  };
+
   // --- Persist UI prefs (filters + sort) ---
   // Uses localStorage when available, falls back to cookies.
   const PREF_KEY = 'dp_wind_watcher_prefs_v1';
@@ -710,44 +728,231 @@
 
   const savePrefsDebounced = debounce(savePrefs, 250);
   const renderDebounced = debounce(render, 120);
+  const updateUrlDebounced = debounce(updateUrl, 250);
 
-  function applyPrefs(){
+  function applyPrefs(opts = {}){
     const p = readPrefs();
     if (!p || typeof p !== 'object') return;
+    const skipFilters = !!opts.skipFilters;
 
-    // State
-    if (typeof p.state === 'string') {
-      const opt = Array.from(els.stateFilter.options).some(o => o.value === p.state);
-      if (opt) els.stateFilter.value = p.state;
+    if (!skipFilters) {
+      // State
+      if (typeof p.state === 'string') {
+        const opt = Array.from(els.stateFilter.options).some(o => o.value === p.state);
+        if (opt) els.stateFilter.value = p.state;
+      }
+
+      // Region
+      if (typeof p.region === 'string') {
+        const opt = Array.from(els.regionFilter.options).some(o => o.value === p.region);
+        if (opt) els.regionFilter.value = p.region;
+      }
+
+      // Text
+      if (typeof p.text === 'string') {
+        els.textFilter.value = p.text;
+      }
+
+      // Toggles
+      if (typeof p.showWarning === 'boolean') showWarningParks = p.showWarning;
+      if (typeof p.showDanger === 'boolean') showDangerParks = p.showDanger;
+      if (typeof p.showWeatherWarnings === 'boolean') showWeatherWarnings = p.showWeatherWarnings;
+
+      // Sort
+      if (p.sortKey === null) {
+        sortKey = null;
+      } else if (typeof p.sortKey === 'string') {
+        const mapped = Object.prototype.hasOwnProperty.call(SORT_KEY_ALIASES, p.sortKey)
+          ? SORT_KEY_ALIASES[p.sortKey]
+          : p.sortKey;
+        sortKey = SORT_KEYS.has(mapped) ? mapped : null;
+      }
+      if (p.sortDir === 'asc' || p.sortDir === 'desc') sortDir = p.sortDir;
     }
 
-    // Region
-    if (typeof p.region === 'string') {
-      const opt = Array.from(els.regionFilter.options).some(o => o.value === p.region);
-      if (opt) els.regionFilter.value = p.region;
-    }
-
-    // Text
-    if (typeof p.text === 'string') {
-      els.textFilter.value = p.text;
-    }
-
-    // Toggles
-    if (typeof p.showWarning === 'boolean') showWarningParks = p.showWarning;
-    if (typeof p.showDanger === 'boolean') showDangerParks = p.showDanger;
-    if (typeof p.showWeatherWarnings === 'boolean') showWeatherWarnings = p.showWeatherWarnings;
     if (typeof p.darkMode === 'boolean') darkModeEnabled = p.darkMode;
+  }
 
-    // Sort
-    if (p.sortKey === null) {
-      sortKey = null;
-    } else if (typeof p.sortKey === 'string') {
-      const mapped = Object.prototype.hasOwnProperty.call(SORT_KEY_ALIASES, p.sortKey)
-        ? SORT_KEY_ALIASES[p.sortKey]
-        : p.sortKey;
-      sortKey = SORT_KEYS.has(mapped) ? mapped : null;
+  function parseBoolParam(value){
+    if (value === null || value === undefined) return null;
+    const v = String(value).trim().toLowerCase();
+    if (!v) return null;
+    if (['1','true','yes','y','on'].includes(v)) return true;
+    if (['0','false','no','n','off'].includes(v)) return false;
+    return null;
+  }
+
+  function normalizeSortKey(raw){
+    if (raw === null || raw === undefined) return null;
+    const cleaned = String(raw).trim();
+    if (!cleaned) return null;
+    if (SORT_KEYS.has(cleaned)) return cleaned;
+    const lower = cleaned.toLowerCase();
+    for (const key of SORT_KEYS) {
+      if (key.toLowerCase() === lower) return key;
     }
-    if (p.sortDir === 'asc' || p.sortDir === 'desc') sortDir = p.sortDir;
+    for (const alias in SORT_KEY_ALIASES) {
+      if (alias.toLowerCase() !== lower) continue;
+      const mapped = SORT_KEY_ALIASES[alias];
+      return mapped && SORT_KEYS.has(mapped) ? mapped : null;
+    }
+    return null;
+  }
+
+  function readUrlFilters(){
+    const params = new URLSearchParams(window.location.search);
+    const hasAny =
+      params.has('state') ||
+      params.has('region') ||
+      params.has('search') ||
+      params.has('q') ||
+      params.has('text') ||
+      params.has('warn') ||
+      params.has('danger') ||
+      params.has('wx') ||
+      params.has('sort') ||
+      params.has('dir');
+
+    if (!hasAny) return { hasAny: false };
+
+    const out = {
+      hasAny: true,
+      state: null,
+      region: null,
+      text: '',
+      textProvided: false,
+      showWarning: null,
+      showDanger: null,
+      showWeatherWarnings: null,
+      sortKey: null,
+      sortProvided: false,
+      sortDir: null,
+      dirProvided: false,
+    };
+
+    if (params.has('state')) {
+      const st = String(params.get('state') || '').trim().toUpperCase();
+      if (st) {
+        const opt = Array.from(els.stateFilter.options).some(o => o.value === st);
+        if (opt) out.state = st;
+      }
+    }
+
+    if (params.has('region')) {
+      const rg = String(params.get('region') || '').trim().toUpperCase();
+      if (rg) {
+        const opt = Array.from(els.regionFilter.options).some(o => o.value === rg);
+        if (opt) out.region = rg;
+      }
+    }
+
+    const searchKey = params.has('search')
+      ? 'search'
+      : (params.has('q') ? 'q' : (params.has('text') ? 'text' : null));
+    if (searchKey) {
+      out.textProvided = true;
+      out.text = String(params.get(searchKey) || '');
+    }
+
+    if (params.has('warn')) {
+      const v = parseBoolParam(params.get('warn'));
+      if (v !== null) out.showWarning = v;
+    }
+    if (params.has('danger')) {
+      const v = parseBoolParam(params.get('danger'));
+      if (v !== null) out.showDanger = v;
+    }
+    if (params.has('wx')) {
+      const v = parseBoolParam(params.get('wx'));
+      if (v !== null) out.showWeatherWarnings = v;
+    }
+
+    if (params.has('sort')) {
+      out.sortProvided = true;
+      const raw = String(params.get('sort') || '').trim();
+      if (!raw) {
+        out.sortKey = null;
+      } else {
+        const lower = raw.toLowerCase();
+        if (['none', 'default', 'off'].includes(lower)) out.sortKey = null;
+        else out.sortKey = normalizeSortKey(raw);
+      }
+    }
+
+    if (params.has('dir')) {
+      out.dirProvided = true;
+      const d = String(params.get('dir') || '').trim().toLowerCase();
+      if (d === 'asc' || d === 'desc') out.sortDir = d;
+    }
+
+    return out;
+  }
+
+  function resetFiltersToDefaults(){
+    if (DEFAULT_FILTERS.state) els.stateFilter.value = DEFAULT_FILTERS.state;
+    if (DEFAULT_FILTERS.region) els.regionFilter.value = DEFAULT_FILTERS.region;
+    els.textFilter.value = DEFAULT_FILTERS.text;
+    showWarningParks = DEFAULT_FILTERS.showWarning;
+    showDangerParks = DEFAULT_FILTERS.showDanger;
+    showWeatherWarnings = DEFAULT_FILTERS.showWeatherWarnings;
+    sortKey = DEFAULT_FILTERS.sortKey;
+    sortDir = DEFAULT_FILTERS.sortDir;
+  }
+
+  function applyUrlFilters(){
+    const p = readUrlFilters();
+    if (!p.hasAny) return false;
+
+    resetFiltersToDefaults();
+
+    if (p.state) els.stateFilter.value = p.state;
+    if (p.region) els.regionFilter.value = p.region;
+    if (p.textProvided) els.textFilter.value = p.text;
+    if (p.showWarning !== null) showWarningParks = p.showWarning;
+    if (p.showDanger !== null) showDangerParks = p.showDanger;
+    if (p.showWeatherWarnings !== null) showWeatherWarnings = p.showWeatherWarnings;
+
+    if (p.sortProvided) {
+      sortKey = p.sortKey;
+      sortDir = p.sortDir || DEFAULT_FILTERS.sortDir;
+    } else if (p.sortDir) {
+      sortDir = p.sortDir;
+    }
+
+    return true;
+  }
+
+  function buildUrlParams(){
+    const params = new URLSearchParams();
+    params.set('state', els.stateFilter.value);
+
+    if (els.regionFilter.value && els.regionFilter.value !== DEFAULT_FILTERS.region) {
+      params.set('region', els.regionFilter.value);
+    }
+
+    const text = String(els.textFilter.value || '').trim();
+    if (text) params.set('search', text);
+
+    if (showWarningParks) params.set('warn', '1');
+    if (showDangerParks) params.set('danger', '1');
+    if (showWeatherWarnings) params.set('wx', '1');
+
+    if (sortKey) {
+      params.set('sort', sortKey);
+      if (sortDir && sortDir !== DEFAULT_FILTERS.sortDir) params.set('dir', sortDir);
+    }
+
+    return params;
+  }
+
+  function updateUrl(){
+    const params = buildUrlParams();
+    const query = params.toString();
+    const path = window.location.pathname;
+    const hash = window.location.hash || '';
+    const next = query ? `${path}?${query}${hash}` : `${path}${hash}`;
+    const current = window.location.pathname + window.location.search + window.location.hash;
+    if (next !== current) history.replaceState(null, '', next);
   }
 
   function applyTheme(){
@@ -1088,6 +1293,7 @@
     if (sortKey === key) sortDir = (sortDir === 'asc') ? 'desc' : 'asc';
     else { sortKey = key; sortDir = 'asc'; }
     savePrefs();
+    updateUrl();
     render();
   }
 
@@ -1969,6 +2175,7 @@ async function bomForecastHourly(geohash){
     if (t.id === 'showWarning') {
       showWarningParks = !!t.checked;
       savePrefs();
+      updateUrl();
       render();
       return;
     }
@@ -1976,6 +2183,7 @@ async function bomForecastHourly(geohash){
     if (t.id === 'showDanger') {
       showDangerParks = !!t.checked;
       savePrefs();
+      updateUrl();
       render();
       return;
     }
@@ -1983,6 +2191,7 @@ async function bomForecastHourly(geohash){
     if (t.id === 'showWxWarnings') {
       showWeatherWarnings = !!t.checked;
       savePrefs();
+      updateUrl();
       render();
       return;
     }
@@ -2002,6 +2211,7 @@ async function bomForecastHourly(geohash){
 
   els.stateFilter.addEventListener('change', () => {
     savePrefs();
+    updateUrl();
     cache.locations.clear();
     allRows = [];
     render();
@@ -2010,11 +2220,13 @@ async function bomForecastHourly(geohash){
 
   els.regionFilter.addEventListener('change', () => {
     savePrefs();
+    updateUrl();
     render();
   });
 
   els.textFilter.addEventListener('input', () => {
     savePrefsDebounced();
+    updateUrlDebounced();
     renderDebounced();
   });
 
@@ -2034,8 +2246,13 @@ async function bomForecastHourly(geohash){
     if (wEl) wEl.textContent = String(WARNING_KMH);
     if (dEl) dEl.textContent = String(DANGER_KMH);
 
-    applyPrefs();
+    const urlApplied = applyUrlFilters();
+    applyPrefs({ skipFilters: urlApplied });
     applyTheme();
+    if (urlApplied) {
+      savePrefs();
+      updateUrl();
+    }
     runSelfTests();
     render();
     loadData();
