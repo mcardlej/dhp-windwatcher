@@ -366,25 +366,20 @@
           <option value="RH">Hospitality</option>
         </select>
 
-        <label class="small">Search</label>
-        <input id="textFilter" placeholder="Filter by park name…" />
-
-        <label class="small">Severity</label>
+        <label class="small">Wind</label>
         <select id="severityFilter">
           <option value="all">All</option>
-          <option value="warning">Warning+ (includes danger)</option>
-          <option value="danger">Danger only</option>
+          <option value="warning">High</option>
+          <option value="danger">Very High</option>
         </select>
+
+        <label class="small">Search</label>
+        <input id="textFilter" placeholder="Filter by park name…" />
 
         <label class="toggle wx" title="Filter to parks with active weather alerts">
           <input id="showWxWarnings" type="checkbox" />
           <span class="dot"></span>
-          <svg class="toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M10.29 3.86 1.82 18a1 1 0 0 0 .85 1.5h18.66a1 1 0 0 0 .85-1.5L13.71 3.86a1 1 0 0 0-1.72 0z"></path>
-            <line x1="12" y1="9" x2="12" y2="13"></line>
-            <line x1="12" y1="17" x2="12.01" y2="17"></line>
-          </svg>
-          weather alerts only
+          Alerts Only
         </label>
       </div>
 
@@ -458,8 +453,8 @@
       <div class="modal-body">
         <p>
           Uses Bureau of Meteorology (BOM) data (<span class="nowrap">api.weather.bom.gov.au</span>). Gusts are in km/h.
-          <span style="color:var(--warning); font-weight:800">Warning</span> <span id="warningValue">51</span> and above;
-          <span style="color:var(--danger); font-weight:800">Danger</span> <span id="dangerValue">63</span> and above.
+          <span style="color:var(--warning); font-weight:800">High</span> <span id="warningValue">51</span> and above;
+          <span style="color:var(--danger); font-weight:800">Very High</span> <span id="dangerValue">63</span> and above.
         </p>
         <ul>
           <li><b>Current</b> is the latest observed gust.</li>
@@ -1204,8 +1199,8 @@
       `<span class="chip"><b>${total}</b> parks</span>`,
       `<span class="chip"><b>${ok}</b> OK</span>`,
       `<span class="chip"><b>${missing}</b> no gust data</span>`,
-      `<span class="chip"><b style="color:var(--warning)">${warning}</b> warning &gt;= ${WARNING_KMH}</span>`,
-      `<span class="chip"><b style="color:var(--danger)">${danger}</b> danger &gt;= ${DANGER_KMH}</span>`,
+      `<span class="chip"><b style="color:var(--warning)">${warning}</b> High &gt;= ${WARNING_KMH}</span>`,
+      `<span class="chip"><b style="color:var(--danger)">${danger}</b> Very High &gt;= ${DANGER_KMH}</span>`,
       `<span class="chip"><b style="color:var(--danger)">${weatherWarn}</b> weather alerts</span>`
     ].join('');
   }
@@ -1220,16 +1215,16 @@
 
     if (stateVal !== DEFAULT_FILTERS.state) parts.push({ label: 'State', value: stateVal });
     if (regionVal !== DEFAULT_FILTERS.region) parts.push({ label: 'Region', value: regionLabel });
-    if (textVal) parts.push({ label: 'Search', value: `"${textVal}"` });
-
     if (severityFilter !== DEFAULT_FILTERS.severity) {
       const sevLabel = severityFilter === 'warning'
-        ? 'Warning+ (includes danger)'
-        : 'Danger only';
-      parts.push({ label: 'Severity', value: sevLabel });
+        ? 'High'
+        : 'Very High';
+      parts.push({ label: 'Wind', value: sevLabel });
     }
 
-    if (showWeatherWarnings) parts.push({ label: 'Alerts', value: 'Weather alerts only' });
+    if (textVal) parts.push({ label: 'Search', value: `"${textVal}"` });
+
+    if (showWeatherWarnings) parts.push({ label: 'Alerts', value: 'Alerts Only' });
 
     if (!parts.length) {
       els.filterSummary.innerHTML = '<span class="small muted">No filters applied.</span>';
@@ -1245,11 +1240,11 @@
   function badgeFor(sev){
     if (sev === 'danger') {
       const tip = escapeHtml(DANGER_TOOLTIP);
-      return `<span class="badge danger" data-tooltip="${tip}" aria-label="${tip}" tabindex="0">Danger</span>`;
+      return `<span class="badge danger" data-tooltip="${tip}" aria-label="${tip}" tabindex="0">Very High</span>`;
     }
     if (sev === 'warning') {
       const tip = escapeHtml(WARNING_TOOLTIP);
-      return `<span class="badge warning" data-tooltip="${tip}" aria-label="${tip}" tabindex="0">Warning</span>`;
+      return `<span class="badge warning" data-tooltip="${tip}" aria-label="${tip}" tabindex="0">High</span>`;
     }
     return '';
   }
