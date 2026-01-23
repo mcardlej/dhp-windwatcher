@@ -960,6 +960,19 @@
     }
   }
 
+  const SAFE_IMAGE_DATA_RE = /^data:image\/(png|jpe?g|gif|webp);\s*base64,/i;
+  const BOM_IMAGE_BASE = 'https://www.bom.gov.au';
+
+  function normalizeImageSrc(raw){
+    const value = String(raw || '').trim();
+    if (!value) return '';
+    if (/^https?:/i.test(value)) return value;
+    if (value.startsWith('//')) return `https:${value}`;
+    if (SAFE_IMAGE_DATA_RE.test(value)) return value;
+    if (value.startsWith('/')) return `${BOM_IMAGE_BASE}${value}`;
+    return '';
+  }
+
   function sanitizeWarningHtml(raw){
     const tpl = document.createElement('template');
     tpl.innerHTML = String(raw || '');
@@ -995,9 +1008,16 @@
         if (allowSet && allowSet.has(name)) {
           if (tag === 'a' && name === 'href' && !/^https?:/i.test(value)) {
             el.removeAttribute(attr.name);
+            return;
           }
-          if (tag === 'img' && name === 'src' && !/^https?:/i.test(value)) {
-            el.removeAttribute(attr.name);
+          if (tag === 'img' && name === 'src') {
+            const normalized = normalizeImageSrc(value);
+            if (!normalized) {
+              el.removeAttribute(attr.name);
+              return;
+            }
+            if (normalized !== value) el.setAttribute('src', normalized);
+            return;
           }
           return;
         }
