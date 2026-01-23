@@ -301,6 +301,11 @@
     .warning-chip.group-moderate{border-color:rgba(217,119,6,.4); color:var(--warning);}
     .warning-chip.group-minor{border-color:rgba(15,118,110,.35); color:var(--ok);}
     .warning-meta{display:flex; flex-wrap:wrap; gap:10px; font-size:12px; color:var(--muted); margin-top:8px;}
+    .warning-details{margin-top:10px; border-top:1px solid var(--line); padding-top:8px;}
+    .warning-details summary{cursor:pointer; color:var(--wx); font-weight:700; font-size:12px; list-style:none; display:flex; align-items:center; gap:6px;}
+    .warning-details summary::-webkit-details-marker{display:none;}
+    .warning-details summary::before{content:"+"; font-weight:800;}
+    .warning-details[open] summary::before{content:"-";}
     .warning-message{margin-top:10px; font-size:13px; line-height:1.45; color:var(--text);}
     .warning-message h1,.warning-message h2,.warning-message h3,.warning-message h4{margin:8px 0 6px; font-size:13px; font-weight:800;}
     .warning-message p{margin:6px 0; color:var(--text);}
@@ -1827,8 +1832,11 @@ async function bomForecastHourly(geohash){
             </div>
             <div class="warning-chip-row">${chips.join('')}</div>
           </div>
-          <div class="warning-meta">${metaHtml}</div>
-          ${messageBlock}
+          <details class="warning-details">
+            <summary>Show details</summary>
+            <div class="warning-meta">${metaHtml}</div>
+            ${messageBlock}
+          </details>
         </article>
       `;
     }).join('');
