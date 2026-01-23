@@ -132,22 +132,6 @@
     .row-top{display:block;}
     .park-name{display:flex; align-items:center; gap:8px; min-width:0;}
     .park-name b{flex:0 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-    .park-name b.wx-alert{
-      border-radius:8px;
-      box-shadow:0 0 0 2px var(--danger);
-      animation: wxNamePulse 1.1s ease-in-out infinite;
-    }
-    @keyframes wxNamePulse{
-      0%,100%{ box-shadow:0 0 0 2px var(--danger); }
-      50%{ box-shadow:0 0 0 3px var(--danger), 0 0 0 6px var(--dangerFlashShadow); }
-    }
-    html[data-refreshing="1"] .park-name b.wx-alert{
-      animation:none !important;
-      box-shadow:0 0 0 2px var(--danger);
-    }
-    @media (prefers-reduced-motion: reduce){
-      .park-name b.wx-alert{animation:none; box-shadow:0 0 0 2px var(--danger);}
-    }
     .badge{display:inline-flex; gap:6px; align-items:center; font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); white-space:nowrap; flex:0 0 auto}
     .badge.warning{border-color:rgba(217,119,6,.55); color:var(--warning)}
     .badge.danger{border-color:rgba(217,45,32,.55); color:var(--danger)}
@@ -155,6 +139,21 @@
     .weather-warning-btn:hover{border-color:rgba(217,45,32,.85);}
     .weather-warning-btn:focus-visible{outline:3px solid rgba(138,164,214,.35); outline-offset:2px;}
     .weather-warning-btn svg{width:14px; height:14px; display:block;}
+    .weather-warning-btn.wx-alert{
+      animation: wxAlertPulse 1.1s ease-in-out infinite;
+      box-shadow:0 0 0 2px var(--danger);
+    }
+    @keyframes wxAlertPulse{
+      0%,100%{ box-shadow:0 0 0 2px var(--danger); }
+      50%{ box-shadow:0 0 0 2px var(--danger), 0 0 0 6px var(--dangerFlashShadow); }
+    }
+    html[data-refreshing="1"] .weather-warning-btn.wx-alert{
+      animation:none !important;
+      box-shadow:0 0 0 2px var(--danger);
+    }
+    @media (prefers-reduced-motion: reduce){
+      .weather-warning-btn.wx-alert{animation:none; box-shadow:0 0 0 2px var(--danger);}
+    }
     .weather-warning-count{font-weight:700; font-size:11px;}
     .badge[data-tooltip]{position:relative; cursor:help;}
     .badge[data-tooltip]::after{
@@ -1361,7 +1360,7 @@
     const nameAttr = escapeHtml(row.name || '');
     const stateAttr = escapeHtml(row.state || '');
     return `
-      <button class="weather-warning-btn" type="button" data-warning-ids="${idsAttr}" data-park-name="${nameAttr}" data-park-state="${stateAttr}" aria-label="${escapeHtml(label)}" aria-haspopup="dialog" aria-controls="warningModal" title="${escapeHtml(label)}">
+      <button class="weather-warning-btn wx-alert" type="button" data-warning-ids="${idsAttr}" data-park-name="${nameAttr}" data-park-state="${stateAttr}" aria-label="${escapeHtml(label)}" aria-haspopup="dialog" aria-controls="warningModal" title="${escapeHtml(label)}">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M10.29 3.86 1.82 18a1 1 0 0 0 .85 1.5h18.66a1 1 0 0 0 .85-1.5L13.71 3.86a1 1 0 0 0-1.72 0z"></path>
           <line x1="12" y1="9" x2="12" y2="13"></line>
@@ -1425,9 +1424,7 @@
     const isAllMode = (els.stateFilter?.value === 'ALL');
     els.tbody.innerHTML = rows.map(r => {
       const badge = badgeFor(r.severity);
-      const hasWeatherWarning = Array.isArray(r.weatherWarnings) && r.weatherWarnings.length > 0;
       const weatherWarningBtn = renderWeatherWarningButton(r);
-      const parkNameClass = hasWeatherWarning ? 'wx-alert' : '';
       const updatedText = r.issueTime ? timeAgo(r.issueTime) : '—';
       const parkTz = isAllMode ? (timeZoneForState(r.state) || getDisplayTimeZone()) : null;
 
@@ -1468,7 +1465,7 @@
           <td>
             <div class="row-top">
               <div class="park-name">
-                <b class="${parkNameClass}">${escapeHtml(r.name)}</b>
+                <b>${escapeHtml(r.name)}</b>
                 ${badge}
                 ${weatherWarningBtn}
               </div>
