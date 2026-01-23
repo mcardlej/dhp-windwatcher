@@ -690,6 +690,7 @@
   // --- Persist UI prefs (filters + sort) ---
   // Uses localStorage when available, falls back to cookies.
   const PREF_KEY = 'dp_wind_watcher_prefs_v1';
+  const URL_FILTER_KEYS = ['state', 'region', 'wind', 'severity', 'search', 'alerts'];
 
   function cookieGet(name){
     const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.$?*|{}()\[\]\\\/\+^]/g,'\\$&') + '=([^;]*)'));
@@ -721,6 +722,89 @@
     cookieSet(PREF_KEY, raw);
   }
 
+  function parseBoolParam(raw){
+    if (raw === null || raw === undefined) return null;
+    const v = String(raw).trim().toLowerCase();
+    if (v === '' || v === '1' || v === 'true' || v === 'yes' || v === 'on') return true;
+    if (v === '0' || v === 'false' || v === 'no' || v === 'off') return false;
+    return null;
+  }
+
+  function normalizeSeverityParam(raw){
+    if (raw === null || raw === undefined) return null;
+    const v = String(raw).trim().toLowerCase();
+    if (!v) return null;
+    if (v === 'all') return 'all';
+    if (v === 'warning' || v === 'high') return 'warning';
+    if (v === 'danger' || v === 'very-high' || v === 'veryhigh' || v === 'very_high') return 'danger';
+    return null;
+  }
+
+  function selectHasValue(selectEl, value){
+    if (!selectEl) return false;
+    return Array.from(selectEl.options).some(o => o.value === value);
+  }
+
+  function applyUrlFilters(){
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (!params || !params.toString()) return;
+
+    const stateRaw = params.get('state');
+    if (stateRaw) {
+      const stateVal = stateRaw.trim().toUpperCase();
+      if (selectHasValue(els.stateFilter, stateVal)) els.stateFilter.value = stateVal;
+    }
+
+    const regionRaw = params.get('region');
+    if (regionRaw) {
+      const regionVal = regionRaw.trim().toUpperCase();
+      if (selectHasValue(els.regionFilter, regionVal)) els.regionFilter.value = regionVal;
+    }
+
+    const windRaw = params.get('wind') || params.get('severity');
+    const windVal = normalizeSeverityParam(windRaw);
+    if (windVal) severityFilter = windVal;
+    if (els.severityFilter) els.severityFilter.value = severityFilter;
+
+    if (params.has('search')) {
+      els.textFilter.value = params.get('search') || '';
+    }
+
+    if (params.has('alerts')) {
+      const alertsVal = parseBoolParam(params.get('alerts'));
+      if (typeof alertsVal === 'boolean') showWeatherWarnings = alertsVal;
+    }
+    if (els.showWxWarnings) els.showWxWarnings.checked = !!showWeatherWarnings;
+    syncWeatherToggle();
+  }
+
+  function updateUrlFromFilters(){
+    if (typeof window === 'undefined' || !window.history || !window.location) return;
+    const params = new URLSearchParams(window.location.search);
+    URL_FILTER_KEYS.forEach(k => params.delete(k));
+
+    const stateVal = els.stateFilter.value;
+    if (stateVal && stateVal !== DEFAULT_FILTERS.state) params.set('state', stateVal);
+
+    const regionVal = els.regionFilter.value;
+    if (regionVal && regionVal !== DEFAULT_FILTERS.region) params.set('region', regionVal);
+
+    if (severityFilter && severityFilter !== DEFAULT_FILTERS.severity) {
+      params.set('wind', severityFilter);
+    }
+
+    const searchVal = els.textFilter.value.trim();
+    if (searchVal) params.set('search', searchVal);
+
+    if (showWeatherWarnings) params.set('alerts', '1');
+
+    const nextQuery = params.toString();
+    const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash || ''}`;
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash || ''}`;
+    if (nextUrl !== currentUrl) window.history.replaceState({}, '', nextUrl);
+  }
+
   function currentPrefs(){
     return {
       state: els.stateFilter.value,
@@ -739,6 +823,7 @@
   }
 
   const savePrefsDebounced = debounce(savePrefs, 250);
+  const updateUrlDebounced = debounce(updateUrlFromFilters, 250);
   const renderDebounced = debounce(render, 120);
 
   function applyPrefs(){
@@ -1403,6 +1488,7 @@
     syncWeatherToggle();
 
     savePrefs();
+    updateUrlFromFilters();
 
     const stateChanged = prevState !== els.stateFilter.value;
     if (stateChanged) {
@@ -2057,6 +2143,7 @@ async function bomForecastHourly(geohash){
       const val = String(els.severityFilter.value || '').toLowerCase();
       severityFilter = (val === 'warning' || val === 'danger') ? val : 'all';
       savePrefs();
+      updateUrlFromFilters();
       render();
     });
   }
@@ -2066,6 +2153,7 @@ async function bomForecastHourly(geohash){
       showWeatherWarnings = !!e.target.checked;
       syncWeatherToggle();
       savePrefs();
+      updateUrlFromFilters();
       render();
     });
   }
@@ -2076,6 +2164,7 @@ async function bomForecastHourly(geohash){
 
   els.stateFilter.addEventListener('change', () => {
     savePrefs();
+    updateUrlFromFilters();
     cache.locations.clear();
     allRows = [];
     render();
@@ -2084,17 +2173,20 @@ async function bomForecastHourly(geohash){
 
   els.regionFilter.addEventListener('change', () => {
     savePrefs();
+    updateUrlFromFilters();
     render();
   });
 
   els.textFilter.addEventListener('input', () => {
     savePrefsDebounced();
+    updateUrlDebounced();
     renderDebounced();
   });
 
   els.refreshBtn.addEventListener('click', () => {
     // Refresh keeps filters/sort as-is.
     savePrefs();
+    updateUrlFromFilters();
     cache.locations.clear();
     allRows = [];
     render();
@@ -2109,6 +2201,7 @@ async function bomForecastHourly(geohash){
     if (dEl) dEl.textContent = String(DANGER_KMH);
 
     applyPrefs();
+    applyUrlFilters();
     applyTheme();
     runSelfTests();
     render();
