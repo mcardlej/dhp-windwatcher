@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Discovery Parks - Weather Watcher</title>
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@latest/src/regular/style.css" />
   <style>
     :root{
       /* Light mode palette */
@@ -157,7 +158,15 @@
     .weather-warning-btn{display:inline-flex; align-items:center; gap:6px; border-radius:999px; border:1px solid rgba(217,45,32,.55); background:var(--dangerFlashBg); color:var(--danger); padding:3px 8px; font-size:11px; font-weight:700; cursor:pointer; flex:0 0 auto}
     .weather-warning-btn:hover{border-color:rgba(217,45,32,.85);}
     .weather-warning-btn:focus-visible{outline:3px solid rgba(138,164,214,.35); outline-offset:2px;}
-    .weather-warning-btn svg{width:14px; height:14px; display:block;}
+    .warning-icon{font-size:14px; line-height:1; display:inline-flex; align-items:center; justify-content:center;}
+    .weather-warning-btn .warning-icon{font-size:14px;}
+    .warning-type-icon{font-size:14px; line-height:1; display:inline-flex; align-items:center; justify-content:center; color:var(--wx);}
+    .weather-warning-type{display:inline-flex; align-items:center;}
+    .weather-warning-btn .weather-warning-type{order:1;}
+    .weather-warning-btn .warning-icon{order:2;}
+    .weather-warning-btn .weather-warning-count{order:3;}
+    .desktop-only .weather-warning-btn .warning-icon{order:1;}
+    .desktop-only .weather-warning-btn .weather-warning-type{order:2;}
     .weather-warning-btn.wx-alert{
       animation: wxAlertPulse 1.1s ease-in-out infinite;
       box-shadow:0 0 0 1px var(--danger);
@@ -378,6 +387,9 @@
     .warning-list{display:flex; flex-direction:column; gap:12px; margin-top:10px;}
     .warning-card{background:var(--chip); border:1px solid var(--line); border-radius:14px; padding:12px;}
     .warning-card-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;}
+    .warning-card-title-row{display:flex; align-items:center; gap:6px;}
+    .warning-card-title-row .warning-icon{color:var(--danger);}
+    .warning-card-title-row .warning-type-icon{color:var(--wx);}
     .warning-card-title{font-size:14px; font-weight:800; margin:0;}
     .warning-card-area{font-size:12px; color:var(--muted); margin-top:4px;}
     .warning-card-areas{font-size:12px; color:var(--muted); margin-top:4px;}
@@ -764,6 +776,7 @@
   const DANGER_TOOLTIP = 'Trees 6-12m: Advise all park occupants to limit time spent in fall zones with no protection factors. Trees 13m or greater: Create exclusion zone of tree height +50% for fall zones with no protection factors';
   const IMPORTANT_WARNING_GROUPS = new Set(['major', 'moderate']);
   const IMPORTANT_WARNING_LABEL = 'major and moderate alerts only (cancellations hidden)';
+  const WX_ALERT_ICON = '<i class="ph ph-warning warning-icon" aria-hidden="true"></i>';
   const STATE_NAMES = {
     NSW: 'new south wales',
     ACT: 'australian capital territory',
@@ -1471,6 +1484,64 @@
 
   const HEATWAVE_WARNING_RE = /\bheat\s*wave\b/i;
   const CANCELLATION_WARNING_RE = /\bcancel(?:led|lation)\b/i;
+  const WARNING_TYPE_RULES = [
+    { key: 'fire', re: /\bfire\b/i },
+    { key: 'cyclone', re: /\bcyclone\b|\bhurricane\b|\btropical cyclone\b/i },
+    { key: 'heatwave', re: HEATWAVE_WARNING_RE },
+    { key: 'flood', re: /\bflood\b/i },
+    { key: 'snow', re: /\bsnow\b|\bblizzard\b|\bice\b/i },
+  ];
+  const WARNING_TYPE_ICON_MAP = {
+    fire: 'ph-fire',
+    cyclone: 'ph-hurricane',
+    heatwave: 'ph-thermometer-hot',
+    flood: 'ph-waves',
+    snow: 'ph-snowflake',
+  };
+
+  function warningMatchesRule(rule, warn, detail){
+    const fields = [
+      detail?.type,
+      warn?.type,
+      detail?.warning_type,
+      warn?.warning_type,
+      detail?.type_description,
+      warn?.type_description,
+      detail?.short_title,
+      warn?.short_title,
+      detail?.title,
+      warn?.title,
+      detail?.headline,
+      warn?.headline,
+    ];
+    return fields.some(v => typeof v === 'string' && rule.re.test(v));
+  }
+
+  function warningTypeKeyFor(warn, detail){
+    for (const rule of WARNING_TYPE_RULES) {
+      if (warningMatchesRule(rule, warn, detail)) return rule.key;
+    }
+    return '';
+  }
+
+  function warningTypeIconFor(warn, detail){
+    const key = warningTypeKeyFor(warn, detail);
+    const iconClass = WARNING_TYPE_ICON_MAP[key];
+    return iconClass
+      ? `<i class="ph ${iconClass} warning-type-icon" aria-hidden="true"></i>`
+      : '';
+  }
+
+  function warningTypeIconForWarnings(list){
+    const items = Array.isArray(list) ? list : [];
+    for (const rule of WARNING_TYPE_RULES) {
+      if (items.some(w => warningMatchesRule(rule, w, null))) {
+        const iconClass = WARNING_TYPE_ICON_MAP[rule.key];
+        return `<i class="ph ${iconClass} warning-type-icon" aria-hidden="true"></i>`;
+      }
+    }
+    return '';
+  }
 
   function isHeatwaveWarning(warn){
     const fields = [
@@ -1976,13 +2047,12 @@
     const idsAttr = escapeHtml(ids.join(','));
     const nameAttr = escapeHtml(row.name || '');
     const stateAttr = escapeHtml(row.state || '');
+    const typeIcon = warningTypeIconForWarnings(warnings);
+    const typeIconHtml = typeIcon ? `<span class="weather-warning-type">${typeIcon}</span>` : '';
     return `
       <button class="weather-warning-btn wx-alert" type="button" data-warning-ids="${idsAttr}" data-park-name="${nameAttr}" data-park-state="${stateAttr}" aria-label="${escapeHtml(label)}" aria-haspopup="dialog" aria-controls="warningModal" title="${escapeHtml(label)}">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M10.29 3.86 1.82 18a1 1 0 0 0 .85 1.5h18.66a1 1 0 0 0 .85-1.5L13.71 3.86a1 1 0 0 0-1.72 0z"></path>
-          <line x1="12" y1="9" x2="12" y2="13"></line>
-          <line x1="12" y1="17" x2="12.01" y2="17"></line>
-        </svg>
+        ${typeIconHtml}
+        ${WX_ALERT_ICON}
         <span class="weather-warning-count">${count}</span>
       </button>
     `;
@@ -2642,6 +2712,7 @@
     const groupLabel = String(warn?.warning_group_type || '').toLowerCase();
     const groupClass = groupLabel ? `group-${groupLabel.replace(/[^a-z0-9-]/g, '')}` : '';
     const typeLabel = warningTypeLabel(warn, detail);
+    const typeIcon = warningTypeIconFor(warn, detail) || WX_ALERT_ICON;
     const chips = [];
     if (typeLabel) chips.push(`<span class="warning-chip type">${escapeHtml(typeLabel)}</span>`);
     if (groupLabel) chips.push(`<span class="warning-chip ${groupClass}">${escapeHtml(groupLabel)}</span>`);
@@ -2652,7 +2723,10 @@
       <article class="warning-card">
         <div class="warning-card-head">
           <div>
-            <div class="warning-card-title">${escapeHtml(shortTitle)}</div>
+            <div class="warning-card-title-row">
+              ${typeIcon}
+              <div class="warning-card-title">${escapeHtml(shortTitle)}</div>
+            </div>
             ${areaTitle ? `<div class="warning-card-area">${escapeHtml(areaTitle)}</div>` : ''}
           </div>
           <div class="warning-chip-row">${chips.join('')}</div>
@@ -2671,6 +2745,7 @@
     const firstDetail = detailById.get(first.id) || {};
     const shortTitle = warningShortTitle(first, firstDetail);
     const typeLabel = warningTypeLabel(first, firstDetail);
+    const typeIcon = warningTypeIconFor(first, firstDetail) || WX_ALERT_ICON;
     const groupLabels = warningGroupLabels(warnings);
     const chips = [];
     if (typeLabel) chips.push(`<span class="warning-chip type">${escapeHtml(typeLabel)}</span>`);
@@ -2709,7 +2784,10 @@
       <article class="warning-card">
         <div class="warning-card-head">
           <div>
-            <div class="warning-card-title">${escapeHtml(shortTitle)}</div>
+            <div class="warning-card-title-row">
+              ${typeIcon}
+              <div class="warning-card-title">${escapeHtml(shortTitle)}</div>
+            </div>
             ${areaHtml}
           </div>
           <div class="warning-chip-row">${chips.join('')}</div>
