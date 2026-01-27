@@ -42,8 +42,8 @@
     }
 
     *{box-sizing:border-box}
-    html{height:100%; background:var(--bg); color-scheme:light;}
-    body{min-height:100vh; margin:0; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; background:transparent; color:var(--text);}
+    html{height:100%; background:var(--bg); color-scheme:light; overflow-x:hidden;}
+    body{min-height:100vh; margin:0; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; background:transparent; color:var(--text); overflow-x:hidden;}
 
     /* Bulletproof full-viewport background (Canvas/iframe safe) */
     body::before{
@@ -395,11 +395,22 @@
     .mobile-search{display:flex; flex-direction:column; gap:6px;}
     .mobile-search-row{display:flex; gap:8px; align-items:stretch;}
     .mobile-search-row input{flex:1 1 auto; min-width:0;}
+    .mobile-refresh-btn{
+      padding:10px 12px;
+      font-size:13px;
+      border-radius:10px;
+      white-space:nowrap;
+      align-self:stretch;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
     .mobile-search input{width:100%;}
     .mobile-row{display:flex; flex-wrap:wrap; gap:8px;}
     .mobile-row > *{flex:1 1 0; min-width:0;}
-    .mobile-toggle-row{display:flex; flex-wrap:wrap; gap:8px; align-items:center;}
-    .mobile-toggle-row .toggle{flex:1 1 0;}
+    .mobile-toggle-row{display:flex; flex-wrap:wrap; gap:8px; align-items:stretch;}
+    .mobile-toggle-stack{display:flex; flex-direction:column; gap:8px; flex:1 1 auto;}
+    .mobile-toggle-stack .toggle{width:100%;}
     .mobile-field{display:flex; flex-direction:column; gap:6px;}
     .mobile-actions{display:flex; flex-wrap:wrap; gap:8px; align-items:center;}
     .mobile-actions button{flex:1 1 0; min-width:110px;}
@@ -509,7 +520,7 @@
               </svg>
             </span>
           </label>
-          <button id="refreshBtn" class="icon-btn" type="button" title="Refresh" aria-label="Refresh">↻</button>
+          <button id="refreshBtn" class="icon-btn desktop-only" type="button" title="Refresh" aria-label="Refresh">Refresh</button>
         </div>
       </div>
     </div>
@@ -567,16 +578,19 @@
         </div>
 
         <div class="mobile-toggle-row">
-          <label class="toggle wx" title="Filter to parks with active weather alerts">
-            <input id="mobileShowWxWarnings" type="checkbox" />
-            <span class="dot"></span>
-            Alerts only
-          </label>
-          <label class="toggle warn" title="Toggle heatwave warnings">
-            <input id="mobileShowHeatwaveWarnings" type="checkbox" checked />
-            <span class="dot"></span>
-            <span class="heatwave-label">Heatwave on</span>
-          </label>
+          <div class="mobile-toggle-stack">
+            <label class="toggle wx" title="Filter to parks with active weather alerts">
+              <input id="mobileShowWxWarnings" type="checkbox" />
+              <span class="dot"></span>
+              Alerts only
+            </label>
+            <label class="toggle warn" title="Toggle heatwave warnings">
+              <input id="mobileShowHeatwaveWarnings" type="checkbox" checked />
+              <span class="dot"></span>
+              <span class="heatwave-label">Heatwave on</span>
+            </label>
+          </div>
+          <button id="mobileRefreshBtn" class="mobile-refresh-btn" type="button">Refresh</button>
         </div>
 
         <div id="mobileStatus" class="small muted mobile-status"></div>
@@ -881,6 +895,7 @@
     mobileSeverityFilter: document.getElementById('mobileSeverityFilter'),
     mobileShowWxWarnings: document.getElementById('mobileShowWxWarnings'),
     mobileShowHeatwaveWarnings: document.getElementById('mobileShowHeatwaveWarnings'),
+    mobileRefreshBtn: document.getElementById('mobileRefreshBtn'),
     mobileResetFiltersBtn: document.getElementById('mobileResetFiltersBtn'),
     mobileInfoBtn: document.getElementById('mobileInfoBtn'),
     mobileDarkModeToggle: document.getElementById('mobileDarkModeToggle'),
@@ -2939,6 +2954,10 @@
   els.refreshBtn.addEventListener('click', () => {
     refreshData();
   });
+
+  if (els.mobileRefreshBtn) {
+    els.mobileRefreshBtn.addEventListener('click', refreshData);
+  }
 
 
   // Initial
