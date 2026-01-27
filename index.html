@@ -54,11 +54,14 @@
       z-index:-1;
     }
 
-    header{padding:18px 18px 10px; border-bottom:1px solid var(--line);}
+    header{padding:12px 18px 8px; border-bottom:1px solid var(--line);}
     .wrap{padding:14px 18px 22px; max-width:100%; width:100%; margin:0 auto;}
+    .header-wrap{padding:0;}
 
-    .title-row{display:flex; align-items:flex-start; gap:14px;}
-    .title-logo{height:44px; width:auto; display:block;}
+    .title-row{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;}
+    .title-left{display:flex; align-items:center; gap:12px; min-width:0;}
+    .header-actions{display:flex; align-items:center; gap:10px; margin-left:auto;}
+    .title-logo{height:38px; width:auto; display:block;}
     .title-text{display:flex; flex-direction:column; gap:2px;}
     h1{margin:0;font-size:20px; font-weight:800; letter-spacing:-0.2px; line-height:1.05}
     h2{margin:0;font-size:16px; font-weight:750; letter-spacing:-0.1px; line-height:1.1; color:var(--muted)}
@@ -317,11 +320,35 @@
     .theme-toggle input:checked ~ .theme-icon .icon-sun{display:block;}
     .theme-toggle input:checked ~ .theme-icon .icon-moon{display:none;}
 
-    .modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; padding:18px; z-index:9999;}
+    .modal{
+      position:fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+      padding-top:calc(24px + env(safe-area-inset-top));
+      padding-bottom:calc(24px + env(safe-area-inset-bottom));
+      z-index:9999;
+    }
     .modal.open{display:flex;}
     .modal-backdrop{position:absolute; inset:0; background:rgba(17,24,39,.38);}
-    .modal-card{position:relative; width:min(720px, 100%); max-height:calc(100vh - 36px); background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.18); overflow:hidden; display:flex; flex-direction:column;}
+    .modal-card{
+      position:relative;
+      width:min(720px, 100%);
+      max-height:calc(100vh - 48px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:16px;
+      box-shadow:0 20px 60px rgba(0,0,0,.18);
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+    }
     .modal-card.modal-wide{width:min(820px, 100%);}
+    @supports (height: 100dvh){
+      .modal-card{max-height:calc(100dvh - 48px - env(safe-area-inset-top) - env(safe-area-inset-bottom));}
+    }
     .modal-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--line)}
     .modal-title{margin:0; font-size:14px; font-weight:800;}
     .modal-close{border-radius:10px; padding:8px 10px;}
@@ -414,6 +441,7 @@
       .wrap{padding:12px 14px 18px;}
       h1{font-size:18px;}
       h2{font-size:14px;}
+      .title-logo{height:32px;}
       .toggle{padding:6px 10px; font-size:12px;}
       select,input,button{font-size:13px;}
       .desktop-only{display:none !important;}
@@ -425,12 +453,35 @@
 </head>
 <body>
   <header>
-    <div class="wrap">
+    <div class="wrap header-wrap">
       <div class="title-row">
-        <img class="title-logo" src="https://careers.gdaygroup.com.au/files/images/Logos/_800x600_fit_center-center_none/Discovery-Parks-Full-Colour-Portrait.png" alt="Discovery Parks logo" />
-        <div class="title-text">
-          <h1>Discovery Parks</h1>
-          <h2>Weather Watcher</h2>
+        <div class="title-left">
+          <img class="title-logo" src="https://careers.gdaygroup.com.au/files/images/Logos/_800x600_fit_center-center_none/Discovery-Parks-Full-Colour-Portrait.png" alt="Discovery Parks logo" />
+          <div class="title-text">
+            <h1>Discovery Parks</h1>
+            <h2>Weather Watcher</h2>
+          </div>
+        </div>
+        <div class="header-actions desktop-only">
+          <button id="infoBtn" class="icon-btn" type="button" aria-haspopup="dialog" aria-controls="infoModal" title="Information" aria-label="Information">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+          </button>
+          <label class="theme-toggle" title="Toggle dark mode">
+            <input id="darkModeToggle" type="checkbox" aria-label="Toggle dark mode" />
+            <span class="theme-icon" aria-hidden="true">
+              <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"></path>
+              </svg>
+              <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="4"></circle>
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+              </svg>
+            </span>
+          </label>
         </div>
       </div>
     </div>
@@ -496,7 +547,7 @@
             <label class="toggle warn" title="Toggle heatwave warnings">
               <input id="mobileShowHeatwaveWarnings" type="checkbox" checked />
               <span class="dot"></span>
-              Heatwave
+              <span class="heatwave-label">Heatwave on</span>
             </label>
           </div>
         </details>
@@ -578,7 +629,7 @@
         <label class="toggle warn" title="Toggle heatwave warnings">
           <input id="showHeatwaveWarnings" type="checkbox" checked />
           <span class="dot"></span>
-          Heatwave
+          <span class="heatwave-label">Heatwave on</span>
         </label>
       </div>
 
@@ -586,25 +637,6 @@
         <span id="status" class="small"></span>
         <button id="resetFiltersBtn" type="button">Reset filters</button>
         <button id="refreshBtn" type="button">↻ Refresh</button>
-        <button id="infoBtn" class="icon-btn" type="button" aria-haspopup="dialog" aria-controls="infoModal" title="Information" aria-label="Information">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="16" x2="12" y2="12"></line>
-            <line x1="12" y1="8" x2="12.01" y2="8"></line>
-          </svg>
-        </button>
-        <label class="theme-toggle" title="Toggle dark mode">
-          <input id="darkModeToggle" type="checkbox" aria-label="Toggle dark mode" />
-          <span class="theme-icon" aria-hidden="true">
-            <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"></path>
-            </svg>
-            <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="4"></circle>
-              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
-            </svg>
-          </span>
-        </label>
       </div>
     </div>
 
@@ -1127,6 +1159,13 @@
     if (label) label.classList.toggle('active', !!isActive);
   }
 
+  function updateHeatwaveLabel(){
+    const text = heatwaveWarningsEnabled ? 'Heatwave on' : 'Heatwave off';
+    document.querySelectorAll('.heatwave-label').forEach(el => {
+      el.textContent = text;
+    });
+  }
+
   function syncWeatherToggle(){
     setToggleActive(els.showWxWarnings, showWeatherWarnings);
     setToggleActive(els.mobileShowWxWarnings, showWeatherWarnings);
@@ -1135,6 +1174,7 @@
   function syncHeatwaveToggle(){
     setToggleActive(els.showHeatwaveWarnings, heatwaveWarningsEnabled);
     setToggleActive(els.mobileShowHeatwaveWarnings, heatwaveWarningsEnabled);
+    updateHeatwaveLabel();
   }
 
   function setStatus(msg){
