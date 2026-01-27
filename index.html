@@ -353,6 +353,74 @@
     .warning-message ul,.warning-message ol{margin:6px 0 6px 18px; color:var(--text);}
     .warning-message li{margin:6px 0;}
     .warning-message img{max-width:100%; height:auto; border-radius:10px; border:1px solid var(--line);}
+
+    /* Mobile fallback layout */
+    .desktop-only{display:block;}
+    .mobile-only{display:none;}
+
+    .mobile-panel{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px; margin:8px 0 12px;}
+    .mobile-controls{display:flex; flex-direction:column; gap:10px;}
+    .mobile-search input{width:100%;}
+    .mobile-row{display:flex; flex-wrap:wrap; gap:8px;}
+    .mobile-row > *{flex:1 1 0; min-width:0;}
+    .mobile-field{display:flex; flex-direction:column; gap:6px;}
+    .mobile-actions{display:flex; flex-wrap:wrap; gap:8px; align-items:center;}
+    .mobile-actions button{flex:1 1 0; min-width:110px;}
+    .mobile-status{margin-top:4px;}
+
+    .mobile-advanced{border-top:1px dashed var(--line); padding-top:8px;}
+    .mobile-advanced summary{cursor:pointer; color:var(--muted); font-weight:700; font-size:12px; list-style:none; display:flex; align-items:center; gap:6px;}
+    .mobile-advanced summary::-webkit-details-marker{display:none;}
+    .mobile-advanced summary::before{content:"+"; font-weight:800;}
+    .mobile-advanced[open] summary::before{content:"-";}
+    .mobile-advanced-body{margin-top:8px; display:flex; flex-direction:column; gap:8px;}
+
+    .mobile-summary{display:flex; flex-direction:column; gap:6px; margin:4px 0 12px; color:var(--muted); font-size:12px;}
+    .mobile-summary .strong{color:var(--text); font-weight:700;}
+    .mobile-summary .summary-row{display:flex; flex-wrap:wrap; gap:6px; align-items:center;}
+    .mobile-summary .summary-dot{opacity:.5;}
+
+    .mobile-list{display:flex; flex-direction:column; gap:12px;}
+    .mobile-card{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px; display:flex; flex-direction:column; gap:10px;}
+    .mobile-card[data-severity="danger"]{border-color:rgba(217,45,32,.45);}
+    .mobile-card[data-severity="warning"]{border-color:rgba(217,119,6,.45);}
+    .mobile-card-header{display:flex; justify-content:space-between; gap:10px; align-items:flex-start;}
+    .mobile-card-title{font-weight:800; font-size:15px; margin:0;}
+    .mobile-meta{font-size:12px; color:var(--muted);}
+    .mobile-badges{display:flex; flex-wrap:wrap; gap:6px; align-items:center; justify-content:flex-end;}
+    .mobile-hero{display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; justify-content:space-between;}
+    .mobile-gust{display:flex; flex-direction:column; gap:2px;}
+    .mobile-gust-value{font-size:20px; font-weight:800;}
+    .mobile-gust-label{font-size:11px; color:var(--muted);}
+    .mobile-peak{display:flex; flex-direction:column; gap:2px; text-align:right;}
+    .mobile-peak-value{font-size:14px; font-weight:700;}
+    .mobile-peak-label{font-size:11px; color:var(--muted);}
+    .mobile-updated{font-size:11px; color:var(--muted);}
+    .mobile-error{color:var(--danger); font-size:12px; font-weight:600;}
+
+    .mobile-details{border-top:1px dashed var(--line); padding-top:8px;}
+    .mobile-details summary{cursor:pointer; color:var(--wx); font-weight:700; font-size:12px; list-style:none; display:flex; align-items:center; gap:6px;}
+    .mobile-details summary::-webkit-details-marker{display:none;}
+    .mobile-details summary::before{content:"+"; font-weight:800;}
+    .mobile-details[open] summary::before{content:"-";}
+    .mobile-detail-grid{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; font-size:12px; color:var(--muted); margin-top:8px;}
+    .mobile-detail-item b{color:var(--text); font-weight:700;}
+    .mobile-forecast{margin-top:10px; display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:6px;}
+    .mobile-forecast-row{display:flex; justify-content:space-between; font-size:12px; color:var(--muted); border:1px dashed var(--line); border-radius:10px; padding:6px 8px;}
+    .mobile-disclaimer{margin-top:8px;}
+
+    @media (max-width: 900px){
+      header{padding:14px 14px 8px;}
+      .wrap{padding:12px 14px 18px;}
+      h1{font-size:18px;}
+      h2{font-size:14px;}
+      .toggle{padding:6px 10px; font-size:12px;}
+      select,input,button{font-size:13px;}
+      .desktop-only{display:none !important;}
+      .mobile-only{display:block;}
+      .mobile-summary{display:flex;}
+      .mobile-list{display:flex;}
+    }
 </style>
 </head>
 <body>
@@ -369,6 +437,100 @@
   </header>
 
   <div class="wrap">
+    <div class="mobile-panel mobile-only">
+      <div class="mobile-controls">
+        <div class="mobile-search">
+          <label class="small" for="mobileTextFilter">Search</label>
+          <input id="mobileTextFilter" placeholder="Find a park…" />
+        </div>
+
+        <div class="mobile-row">
+          <div class="mobile-field">
+            <label class="small" for="mobileStateFilter">State</label>
+            <select id="mobileStateFilter">
+              <option value="ALL">All</option>
+              <option value="ACT">ACT</option>
+              <option value="NSW">NSW</option>
+              <option value="NT">NT</option>
+              <option value="QLD">QLD</option>
+              <option value="SA">SA</option>
+              <option value="TAS">TAS</option>
+              <option value="VIC">VIC</option>
+              <option value="WA">WA</option>
+            </select>
+          </div>
+          <div class="mobile-field">
+            <label class="small" for="mobileSeverityFilter">Wind</label>
+            <select id="mobileSeverityFilter">
+              <option value="all">All</option>
+              <option value="warning">High</option>
+              <option value="danger">Very high</option>
+            </select>
+          </div>
+        </div>
+
+        <label class="toggle wx" title="Filter to parks with active weather alerts">
+          <input id="mobileShowWxWarnings" type="checkbox" />
+          <span class="dot"></span>
+          Alerts only
+        </label>
+
+        <details class="mobile-advanced">
+          <summary>More filters</summary>
+          <div class="mobile-advanced-body">
+            <label class="small" for="mobileRegionFilter">Region</label>
+            <select id="mobileRegionFilter">
+              <option value="ALL">All</option>
+              <option value="RW">Rhys</option>
+              <option value="AL">Andrew</option>
+              <option value="PF">Perry</option>
+              <option value="SG">Sean</option>
+              <option value="TC">Tom</option>
+              <option value="JD">Jeff</option>
+              <option value="SL">Scott</option>
+              <option value="JL">James</option>
+              <option value="WS">Workstay</option>
+              <option value="RH">Hospitality</option>
+            </select>
+
+            <label class="toggle warn" title="Toggle heatwave warnings">
+              <input id="mobileShowHeatwaveWarnings" type="checkbox" checked />
+              <span class="dot"></span>
+              Heatwave
+            </label>
+          </div>
+        </details>
+
+        <div class="mobile-actions">
+          <button id="mobileResetFiltersBtn" type="button">Reset filters</button>
+          <button id="mobileRefreshBtn" type="button">↻ Refresh</button>
+          <button id="mobileInfoBtn" class="icon-btn" type="button" aria-haspopup="dialog" aria-controls="infoModal" title="Information" aria-label="Information">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+          </button>
+          <label class="theme-toggle" title="Toggle dark mode">
+            <input id="mobileDarkModeToggle" type="checkbox" aria-label="Toggle dark mode" />
+            <span class="theme-icon" aria-hidden="true">
+              <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"></path>
+              </svg>
+              <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="4"></circle>
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+              </svg>
+            </span>
+          </label>
+        </div>
+        <div id="mobileStatus" class="small muted mobile-status"></div>
+      </div>
+    </div>
+
+    <div class="mobile-summary mobile-only" id="mobileSummary"></div>
+
+    <div class="controls desktop-only">
     <div class="controls">
       <div class="controls-left">
         <label class="small">State</label>
@@ -447,11 +609,11 @@
       </div>
     </div>
 
-    <div class="filter-summary" id="filterSummary"></div>
+    <div class="filter-summary desktop-only" id="filterSummary"></div>
 
-    <div class="stats" id="stats"></div>
+    <div class="stats desktop-only" id="stats"></div>
 
-    <div class="card">
+    <div class="card desktop-only">
       <table>
         <thead>
           <tr>
@@ -477,6 +639,11 @@
       <div class="table-disclaimer small muted">
         Proof of concept only. Do not rely on this data for operational decisions.
       </div>
+    </div>
+
+    <div class="mobile-list mobile-only" id="mobileList"></div>
+    <div class="mobile-disclaimer small muted mobile-only">
+      Proof of concept only. Do not rely on this data for operational decisions.
     </div>
   </div>
 
@@ -675,6 +842,19 @@
     tbody: document.getElementById('tbody'),
     stats: document.getElementById('stats'),
     filterSummary: document.getElementById('filterSummary'),
+    mobileStateFilter: document.getElementById('mobileStateFilter'),
+    mobileRegionFilter: document.getElementById('mobileRegionFilter'),
+    mobileTextFilter: document.getElementById('mobileTextFilter'),
+    mobileSeverityFilter: document.getElementById('mobileSeverityFilter'),
+    mobileShowWxWarnings: document.getElementById('mobileShowWxWarnings'),
+    mobileShowHeatwaveWarnings: document.getElementById('mobileShowHeatwaveWarnings'),
+    mobileRefreshBtn: document.getElementById('mobileRefreshBtn'),
+    mobileResetFiltersBtn: document.getElementById('mobileResetFiltersBtn'),
+    mobileInfoBtn: document.getElementById('mobileInfoBtn'),
+    mobileDarkModeToggle: document.getElementById('mobileDarkModeToggle'),
+    mobileStatus: document.getElementById('mobileStatus'),
+    mobileList: document.getElementById('mobileList'),
+    mobileSummary: document.getElementById('mobileSummary'),
     infoBtn: document.getElementById('infoBtn'),
     infoModal: document.getElementById('infoModal'),
     infoClose: document.getElementById('infoClose'),
@@ -693,6 +873,13 @@
     alertsOnly: false,
     heatwaveWarnings: true,
   };
+
+  const REGION_LABELS = (() => {
+    const map = {};
+    const opts = Array.from(els.regionFilter?.options || []);
+    opts.forEach(opt => { map[opt.value] = opt.textContent; });
+    return map;
+  })();
 
   const cache = { locations: new Map() };
   const LOC_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12h, matches worker /locations cache
@@ -819,6 +1006,7 @@
     if (els.showHeatwaveWarnings) els.showHeatwaveWarnings.checked = !!heatwaveWarningsEnabled;
     syncWeatherToggle();
     syncHeatwaveToggle();
+    syncMobileFilters();
   }
 
   function updateUrlFromFilters(){
@@ -913,6 +1101,7 @@
     if (els.showHeatwaveWarnings) els.showHeatwaveWarnings.checked = !!heatwaveWarningsEnabled;
     syncWeatherToggle();
     syncHeatwaveToggle();
+    syncMobileFilters();
 
     // Sort
     if (p.sortKey === null) {
@@ -930,22 +1119,72 @@
     if (darkModeEnabled) document.documentElement.setAttribute('data-theme', 'dark');
     else document.documentElement.removeAttribute('data-theme');
     if (els.darkModeToggle) els.darkModeToggle.checked = !!darkModeEnabled;
+    if (els.mobileDarkModeToggle) els.mobileDarkModeToggle.checked = !!darkModeEnabled;
+  }
+
+  function setToggleActive(inputEl, isActive){
+    if (!inputEl) return;
+    const label = inputEl.closest('.toggle');
+    if (label) label.classList.toggle('active', !!isActive);
   }
 
   function syncWeatherToggle(){
-    if (!els.showWxWarnings) return;
-    const label = els.showWxWarnings.closest('.toggle');
-    if (label) label.classList.toggle('active', !!showWeatherWarnings);
+    setToggleActive(els.showWxWarnings, showWeatherWarnings);
+    setToggleActive(els.mobileShowWxWarnings, showWeatherWarnings);
   }
 
   function syncHeatwaveToggle(){
-    if (!els.showHeatwaveWarnings) return;
-    const label = els.showHeatwaveWarnings.closest('.toggle');
-    if (label) label.classList.toggle('active', !!heatwaveWarningsEnabled);
+    setToggleActive(els.showHeatwaveWarnings, heatwaveWarningsEnabled);
+    setToggleActive(els.mobileShowHeatwaveWarnings, heatwaveWarningsEnabled);
   }
 
   function setStatus(msg){
-    els.status.textContent = msg || '';
+    if (els.status) els.status.textContent = msg || '';
+    if (els.mobileStatus) els.mobileStatus.textContent = msg || '';
+  }
+
+  function setInputValue(el, value){
+    if (!el) return;
+    const next = (value === null || value === undefined) ? '' : String(value);
+    if (el.value !== next) el.value = next;
+  }
+
+  function setInputChecked(el, checked){
+    if (!el) return;
+    const next = !!checked;
+    if (el.checked !== next) el.checked = next;
+  }
+
+  function syncMobileFilters(){
+    if (!els.mobileStateFilter) return;
+    setInputValue(els.mobileStateFilter, els.stateFilter.value);
+    setInputValue(els.mobileRegionFilter, els.regionFilter.value);
+    setInputValue(els.mobileTextFilter, els.textFilter.value);
+    setInputValue(els.mobileSeverityFilter, severityFilter);
+    setInputChecked(els.mobileShowWxWarnings, showWeatherWarnings);
+    setInputChecked(els.mobileShowHeatwaveWarnings, heatwaveWarningsEnabled);
+    setInputChecked(els.mobileDarkModeToggle, darkModeEnabled);
+  }
+
+  function proxySelectChange(sourceEl, targetEl){
+    if (!sourceEl || !targetEl) return;
+    if (targetEl.value === sourceEl.value) return;
+    targetEl.value = sourceEl.value;
+    targetEl.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function proxyInputChange(sourceEl, targetEl){
+    if (!sourceEl || !targetEl) return;
+    if (targetEl.value === sourceEl.value) return;
+    targetEl.value = sourceEl.value;
+    targetEl.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function proxyToggleChange(sourceEl, targetEl){
+    if (!sourceEl || !targetEl) return;
+    if (targetEl.checked === sourceEl.checked) return;
+    targetEl.checked = sourceEl.checked;
+    targetEl.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
   function formatKmh(v){
@@ -954,6 +1193,8 @@
   }
 
   const HOUR_MS = 60 * 60 * 1000;
+  const MOBILE_FORECAST_COUNT = 6;
+  const MOBILE_PEAK_COUNT = 3;
   let forecastSlots = [];
   let forecastSlotsTz = null;
   let forecastSlotsMode = null; // 'relative' | 'clock'
@@ -1093,6 +1334,46 @@
     if (lvl === 'warning') return 'warningCell';
     if (lvl === 'ok') return 'okCell';
     return '';
+  }
+
+  function mobileCellClassFor(v){
+    const lvl = levelFor(v);
+    if (lvl === 'danger') return 'dangerCell';
+    if (lvl === 'warning') return 'warningCell';
+    if (lvl === 'ok') return 'okCell';
+    return '';
+  }
+
+  function maxGustForSlots(row, slots){
+    if (!row || !row.hourlyGusts || typeof row.hourlyGusts.get !== 'function') return null;
+    let max = null;
+    slots.forEach(slot => {
+      const v = row.hourlyGusts.get(slot.ms);
+      if (v === null || v === undefined || Number.isNaN(v)) return;
+      if (max === null || v > max) max = v;
+    });
+    return max;
+  }
+
+  function buildMobileForecastHtml(row, slots, timeZone){
+    if (!row || !row.hourlyGusts || typeof row.hourlyGusts.get !== 'function') {
+      return '<div class="small muted">No forecast data available.</div>';
+    }
+
+    const picks = slots.slice(0, MOBILE_FORECAST_COUNT).map(slot => {
+      const v = row.hourlyGusts.get(slot.ms);
+      return { label: formatHourLabelMs(slot.ms, timeZone), value: v };
+    });
+    const hasAny = picks.some(p => p.value !== null && p.value !== undefined && !Number.isNaN(p.value));
+
+    if (!hasAny) return '<div class="small muted">No forecast data available.</div>';
+
+    return picks.map(p => `
+      <div class="mobile-forecast-row">
+        <span>${escapeHtml(p.label)}</span>
+        <span class="${mobileCellClassFor(p.value)}">${formatKmh(p.value)}</span>
+      </div>
+    `).join('');
   }
 
   function setRefreshing(on){
@@ -1364,8 +1645,7 @@
     ].join('');
   }
 
-  function renderFilterSummary(){
-    if (!els.filterSummary) return;
+  function getFilterSummaryParts(){
     const parts = [];
     const stateVal = els.stateFilter.value;
     const regionVal = els.regionFilter.value;
@@ -1388,6 +1668,12 @@
       parts.push({ label: 'Heatwave', value: heatwaveWarningsEnabled ? 'On' : 'Off' });
     }
 
+    return parts;
+  }
+
+  function renderFilterSummary(){
+    if (!els.filterSummary) return;
+    const parts = getFilterSummaryParts();
     if (!parts.length) {
       els.filterSummary.innerHTML = '<span class="small muted">No filters applied.</span>';
       return;
@@ -1397,6 +1683,146 @@
       '<span class="small muted">Filters:</span>',
       ...parts.map(p => `<span class="filter-chip"><b>${escapeHtml(p.label)}:</b> ${escapeHtml(p.value)}</span>`)
     ].join('');
+  }
+
+  function renderMobileSummary(rows){
+    if (!els.mobileSummary) return;
+    const total = rows.length;
+    const danger = rows.filter(r => r.severity === 'danger').length;
+    const warning = rows.filter(r => r.severity === 'warning').length;
+    const weatherWarn = rows.filter(r => warningsForRow(r).length > 0).length;
+
+    const parts = getFilterSummaryParts();
+    const filterText = parts.length
+      ? `Filters: ${parts.map(p => `${escapeHtml(p.label)} ${escapeHtml(p.value)}`).join(' • ')}`
+      : 'No filters applied.';
+
+    els.mobileSummary.innerHTML = `
+      <div class="summary-row">
+        <span class="strong">${total}</span> parks
+        <span class="summary-dot">•</span>
+        <span class="strong" style="color:var(--danger)">${danger}</span> very high
+        <span class="summary-dot">•</span>
+        <span class="strong" style="color:var(--warning)">${warning}</span> high
+        <span class="summary-dot">•</span>
+        <span class="strong">${weatherWarn}</span> alerts
+      </div>
+      <div class="summary-row">${filterText}</div>
+    `;
+  }
+
+  function renderMobileList(rows){
+    if (!els.mobileList) return;
+    const slots = ensureForecastSlots();
+    if (!rows.length) {
+      if (isLoading) {
+        els.mobileList.innerHTML = `
+          <div class="loading-state" role="status" aria-live="polite">
+            <div class="spinner" aria-hidden="true"></div>
+            <div class="loading-title">Loading parks...</div>
+            <div class="small muted">Fetching the latest BOM data.</div>
+          </div>
+        `;
+        return;
+      }
+      if (!allRows.length) {
+        els.mobileList.innerHTML = '';
+        return;
+      }
+
+      els.mobileList.innerHTML = `
+        <div class="empty-state">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            <line x1="8" y1="8" x2="14" y2="14"></line>
+            <line x1="14" y1="8" x2="8" y2="14"></line>
+          </svg>
+          <div class="empty-title">No parks match the current filters.</div>
+          <div class="small muted">Try adjusting the state, search, or alert filters.</div>
+        </div>
+      `;
+      return;
+    }
+
+    const isAllMode = (els.stateFilter?.value === 'ALL');
+    els.mobileList.innerHTML = rows.map(r => {
+      const badge = badgeFor(r.severity);
+      const weatherWarningBtn = renderWeatherWarningButton(r);
+      const updatedText = r.issueTime ? timeAgo(r.issueTime) : '—';
+      const currentVal = r.gustKmh;
+      const tz = isAllMode ? (timeZoneForState(r.state) || getDisplayTimeZone()) : getDisplayTimeZone();
+      const peakSlots = slots.slice(0, MOBILE_PEAK_COUNT);
+      const peakShort = maxGustForSlots(r, peakSlots);
+      const peakAll = maxGustForSlots(r, slots);
+      const regionLabel = REGION_LABELS[r.rom] || r.rom || '—';
+      const metaLine = [r.state, regionLabel].filter(Boolean).join(' • ');
+
+      const errorLine = r.error
+        ? `<div class="mobile-error">${escapeHtml(r.error)}</div>`
+        : '';
+
+      const detailGrid = `
+        <div class="mobile-detail-grid">
+          <div class="mobile-detail-item">
+            <span>Updated</span>
+            <b>${escapeHtml(formatDateTime(r.issueTime, r.state))}</b>
+          </div>
+          <div class="mobile-detail-item">
+            <span>Station</span>
+            <b>${escapeHtml(r.stationName || '—')}</b>
+          </div>
+          <div class="mobile-detail-item">
+            <span>Next 12h peak</span>
+            <b>${escapeHtml(formatKmh(peakAll))}</b>
+          </div>
+          <div class="mobile-detail-item">
+            <span>Current gust</span>
+            <b class="${mobileCellClassFor(currentVal)}">${escapeHtml(formatKmh(currentVal))}</b>
+          </div>
+        </div>
+      `;
+
+      const detailBody = r.error
+        ? `<div class="mobile-error">${escapeHtml(r.error)}</div>`
+        : `
+            ${detailGrid}
+            <div class="mobile-forecast">
+              ${buildMobileForecastHtml(r, slots, tz)}
+            </div>
+          `;
+
+      return `
+        <article class="mobile-card" data-severity="${escapeHtml(r.severity)}">
+          <div class="mobile-card-header">
+            <div>
+              <div class="mobile-card-title">${escapeHtml(r.name)}</div>
+              <div class="mobile-meta">${escapeHtml(metaLine)}</div>
+            </div>
+            <div class="mobile-badges">
+              ${badge}
+              ${weatherWarningBtn}
+            </div>
+          </div>
+          ${errorLine}
+          <div class="mobile-hero">
+            <div class="mobile-gust ${mobileCellClassFor(currentVal)}">
+              <div class="mobile-gust-value">${escapeHtml(formatKmh(currentVal))}</div>
+              <div class="mobile-gust-label">Current gust</div>
+            </div>
+            <div class="mobile-peak">
+              <div class="mobile-peak-value">${escapeHtml(formatKmh(peakShort))}</div>
+              <div class="mobile-peak-label">Next ${MOBILE_PEAK_COUNT}h peak</div>
+            </div>
+            <div class="mobile-updated">Updated ${escapeHtml(updatedText)}</div>
+          </div>
+          <details class="mobile-details">
+            <summary>More details</summary>
+            ${detailBody}
+          </details>
+        </article>
+      `;
+    }).join('');
   }
 
   function badgeFor(sev){
@@ -1546,9 +1972,12 @@
     const rows = filteredRows();
     renderStats(rows);
     renderFilterSummary();
+    renderMobileSummary(rows);
     updateHourHeaders();
     renderTable(rows);
+    renderMobileList(rows);
     updateSortIndicators();
+    syncMobileFilters();
   }
 
   function resetFilters(){
@@ -1565,6 +1994,7 @@
     if (els.showHeatwaveWarnings) els.showHeatwaveWarnings.checked = !!heatwaveWarningsEnabled;
     syncWeatherToggle();
     syncHeatwaveToggle();
+    syncMobileFilters();
 
     savePrefs();
     updateUrlFromFilters();
@@ -1579,6 +2009,16 @@
     }
 
     render();
+  }
+
+  function refreshData(){
+    // Refresh keeps filters/sort as-is.
+    savePrefs();
+    updateUrlFromFilters();
+    cache.locations.clear();
+    allRows = [];
+    render();
+    loadData();
   }
 
   let renderScheduled = false;
@@ -2127,6 +2567,7 @@
   function closeInfo(){ els.infoModal.classList.remove('open'); }
 
   els.infoBtn.addEventListener('click', openInfo);
+  if (els.mobileInfoBtn) els.mobileInfoBtn.addEventListener('click', openInfo);
   els.infoClose.addEventListener('click', closeInfo);
   els.infoModal.addEventListener('click', (e) => {
     if (e.target && e.target.dataset && e.target.dataset.close) closeInfo();
@@ -2143,6 +2584,14 @@
 
   if (els.darkModeToggle) {
     els.darkModeToggle.addEventListener('change', (e) => {
+      darkModeEnabled = !!e.target.checked;
+      applyTheme();
+      savePrefs();
+    });
+  }
+
+  if (els.mobileDarkModeToggle) {
+    els.mobileDarkModeToggle.addEventListener('change', (e) => {
       darkModeEnabled = !!e.target.checked;
       applyTheme();
       savePrefs();
@@ -2168,6 +2617,19 @@
     openWarningModal(btn.dataset.parkName || 'Park', btn.dataset.parkState || '', ids);
   });
 
+  if (els.mobileList) {
+    els.mobileList.addEventListener('click', (e) => {
+      const btn = e.target.closest('.weather-warning-btn');
+      if (!btn) return;
+      const ids = String(btn.dataset.warningIds || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+      if (!ids.length) return;
+      openWarningModal(btn.dataset.parkName || 'Park', btn.dataset.parkState || '', ids);
+    });
+  }
+
   if (els.severityFilter) {
     els.severityFilter.addEventListener('change', () => {
       const val = String(els.severityFilter.value || '').toLowerCase();
@@ -2175,6 +2637,12 @@
       savePrefs();
       updateUrlFromFilters();
       render();
+    });
+  }
+
+  if (els.mobileSeverityFilter) {
+    els.mobileSeverityFilter.addEventListener('change', () => {
+      proxySelectChange(els.mobileSeverityFilter, els.severityFilter);
     });
   }
 
@@ -2188,6 +2656,12 @@
     });
   }
 
+  if (els.mobileShowWxWarnings) {
+    els.mobileShowWxWarnings.addEventListener('change', () => {
+      proxyToggleChange(els.mobileShowWxWarnings, els.showWxWarnings);
+    });
+  }
+
   if (els.showHeatwaveWarnings) {
     els.showHeatwaveWarnings.addEventListener('change', (e) => {
       heatwaveWarningsEnabled = !!e.target.checked;
@@ -2198,8 +2672,18 @@
     });
   }
 
+  if (els.mobileShowHeatwaveWarnings) {
+    els.mobileShowHeatwaveWarnings.addEventListener('change', () => {
+      proxyToggleChange(els.mobileShowHeatwaveWarnings, els.showHeatwaveWarnings);
+    });
+  }
+
   if (els.resetFiltersBtn) {
     els.resetFiltersBtn.addEventListener('click', resetFilters);
+  }
+
+  if (els.mobileResetFiltersBtn) {
+    els.mobileResetFiltersBtn.addEventListener('click', resetFilters);
   }
 
   els.stateFilter.addEventListener('change', () => {
@@ -2211,11 +2695,23 @@
     loadData();
   });
 
+  if (els.mobileStateFilter) {
+    els.mobileStateFilter.addEventListener('change', () => {
+      proxySelectChange(els.mobileStateFilter, els.stateFilter);
+    });
+  }
+
   els.regionFilter.addEventListener('change', () => {
     savePrefs();
     updateUrlFromFilters();
     render();
   });
+
+  if (els.mobileRegionFilter) {
+    els.mobileRegionFilter.addEventListener('change', () => {
+      proxySelectChange(els.mobileRegionFilter, els.regionFilter);
+    });
+  }
 
   els.textFilter.addEventListener('input', () => {
     savePrefsDebounced();
@@ -2223,15 +2719,19 @@
     renderDebounced();
   });
 
+  if (els.mobileTextFilter) {
+    els.mobileTextFilter.addEventListener('input', () => {
+      proxyInputChange(els.mobileTextFilter, els.textFilter);
+    });
+  }
+
   els.refreshBtn.addEventListener('click', () => {
-    // Refresh keeps filters/sort as-is.
-    savePrefs();
-    updateUrlFromFilters();
-    cache.locations.clear();
-    allRows = [];
-    render();
-    loadData();
+    refreshData();
   });
+
+  if (els.mobileRefreshBtn) {
+    els.mobileRefreshBtn.addEventListener('click', refreshData);
+  }
 
   // Initial
   try {
