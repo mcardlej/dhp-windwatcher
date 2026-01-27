@@ -391,7 +391,7 @@
     .mobile-search-row{display:flex; gap:8px; align-items:stretch;}
     .mobile-search-row input{flex:1 1 auto; min-width:0;}
     .mobile-refresh-btn{
-      padding:10px 12px;
+      padding:10px 14px;
       font-size:13px;
       border-radius:10px;
       white-space:nowrap;
@@ -399,6 +399,9 @@
       display:flex;
       align-items:center;
       justify-content:center;
+      gap:6px;
+      min-width:120px;
+      flex:0 0 auto;
     }
     .mobile-search input{width:100%;}
     .mobile-row{display:flex; flex-wrap:wrap; gap:8px;}
@@ -481,6 +484,7 @@
       .mobile-only{display:block;}
       .mobile-summary{display:flex;}
       .mobile-list{display:flex;}
+      .header-actions{width:100%; justify-content:flex-end;}
     }
 </style>
 </head>
@@ -585,7 +589,10 @@
               <span class="heatwave-label">Heatwave on</span>
             </label>
           </div>
-          <button id="mobileRefreshBtn" class="mobile-refresh-btn" type="button">Refresh</button>
+          <button id="mobileRefreshBtn" class="mobile-refresh-btn" type="button">
+            <span aria-hidden="true">↻</span>
+            <span>Refresh</span>
+          </button>
         </div>
 
         <div id="mobileStatus" class="small muted mobile-status"></div>
@@ -1821,7 +1828,7 @@
     els.mobileList.innerHTML = rows.map(r => {
       const badge = badgeFor(r.severity);
       const weatherWarningBtn = renderWeatherWarningButton(r);
-      const updatedText = r.issueTime ? timeAgo(r.issueTime) : '—';
+      const updatedAgo = r.issueTime ? timeAgo(r.issueTime) : '—';
       const currentVal = r.gustKmh;
       const tz = isAllMode ? (timeZoneForState(r.state) || getDisplayTimeZone()) : getDisplayTimeZone();
       const peakSlots = slots.slice(0, MOBILE_PEAK_COUNT);
@@ -1838,7 +1845,7 @@
         <div class="mobile-detail-grid">
           <div class="mobile-detail-item">
             <span>Updated</span>
-            <b>${escapeHtml(formatDateTime(r.issueTime, r.state))}</b>
+            <b>${escapeHtml(updatedAgo)}</b>
           </div>
           <div class="mobile-detail-item">
             <span>Station</span>
@@ -1886,7 +1893,7 @@
               <div class="mobile-peak-value">${escapeHtml(formatKmh(peakShort))}</div>
               <div class="mobile-peak-label">Next ${MOBILE_PEAK_COUNT}h peak</div>
             </div>
-            <div class="mobile-updated">Updated ${escapeHtml(updatedText)}</div>
+            <div class="mobile-updated">Next 12h ${escapeHtml(formatKmh(peakAll))}</div>
           </div>
           <details class="mobile-details">
             <summary>More details</summary>
