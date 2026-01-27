@@ -391,14 +391,16 @@
     .mobile-only{display:none;}
 
     .mobile-panel{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px; margin:8px 0 12px;}
-    .mobile-controls{display:flex; flex-direction:column; gap:10px;}
+    .mobile-controls{display:flex; flex-direction:column; gap:8px;}
     .mobile-search{display:flex; flex-direction:column; gap:6px;}
-    .mobile-search-row{display:flex; gap:8px; align-items:center;}
+    .mobile-search-row{display:flex; gap:8px; align-items:stretch;}
     .mobile-search-row input{flex:1 1 auto; min-width:0;}
-    .mobile-refresh-btn{padding:8px 10px; font-size:12px; border-radius:10px; white-space:nowrap;}
+    .mobile-refresh-btn{padding:10px 12px; font-size:13px; border-radius:10px; white-space:nowrap;}
     .mobile-search input{width:100%;}
     .mobile-row{display:flex; flex-wrap:wrap; gap:8px;}
     .mobile-row > *{flex:1 1 0; min-width:0;}
+    .mobile-toggle-row{display:flex; flex-wrap:wrap; gap:8px; align-items:center;}
+    .mobile-toggle-row .toggle{flex:1 1 0;}
     .mobile-field{display:flex; flex-direction:column; gap:6px;}
     .mobile-actions{display:flex; flex-wrap:wrap; gap:8px; align-items:center;}
     .mobile-actions button{flex:1 1 0; min-width:110px;}
@@ -415,9 +417,23 @@
     .mobile-summary .strong{color:var(--text); font-weight:700;}
     .mobile-summary .summary-row{display:flex; flex-wrap:wrap; gap:6px; align-items:center;}
     .mobile-summary .summary-row--filters{justify-content:space-between; gap:8px;}
-    .mobile-summary .summary-dot{opacity:.5;}
-    .link-btn{background:none; border:none; padding:0; color:var(--wx); font-size:12px; font-weight:700; cursor:pointer;}
-    .link-btn:hover{text-decoration:underline;}
+    .summary-dot{opacity:.5;}
+    .link-btn{
+      background:none;
+      border:none;
+      padding:0;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:400;
+      cursor:pointer;
+      text-decoration:underline;
+      text-underline-offset:2px;
+    }
+    .link-btn:hover{text-decoration-thickness:2px;}
+    .link-btn:focus-visible{outline:2px solid rgba(138,164,214,.45); outline-offset:2px; border-radius:4px;}
+
+    .stats-line{display:flex; flex-wrap:wrap; gap:6px; align-items:center; color:var(--muted); font-size:13px;}
+    .stats-line b{color:var(--text); font-weight:700;}
 
     .mobile-list{flex-direction:column; gap:12px;}
     .mobile-card{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px; display:flex; flex-direction:column; gap:10px;}
@@ -502,14 +518,6 @@
   <div class="wrap">
     <div class="mobile-panel mobile-only">
       <div class="mobile-controls">
-        <div class="mobile-search">
-          <label class="small" for="mobileTextFilter">Search</label>
-          <div class="mobile-search-row">
-            <input id="mobileTextFilter" placeholder="Find a park…" />
-            <button id="mobileRefreshBtn" class="mobile-refresh-btn" type="button">Refresh</button>
-          </div>
-        </div>
-
         <div class="mobile-row">
           <div class="mobile-field">
             <label class="small" for="mobileStateFilter">State</label>
@@ -526,24 +534,6 @@
             </select>
           </div>
           <div class="mobile-field">
-            <label class="small" for="mobileSeverityFilter">Wind</label>
-            <select id="mobileSeverityFilter">
-              <option value="all">All</option>
-              <option value="warning">High</option>
-              <option value="danger">Very high</option>
-            </select>
-          </div>
-        </div>
-
-        <label class="toggle wx" title="Filter to parks with active weather alerts">
-          <input id="mobileShowWxWarnings" type="checkbox" />
-          <span class="dot"></span>
-          Alerts only
-        </label>
-
-        <details class="mobile-advanced">
-          <summary>More filters</summary>
-          <div class="mobile-advanced-body">
             <label class="small" for="mobileRegionFilter">Region</label>
             <select id="mobileRegionFilter">
               <option value="ALL">All</option>
@@ -558,14 +548,37 @@
               <option value="WS">Workstay</option>
               <option value="RH">Hospitality</option>
             </select>
-
-            <label class="toggle warn" title="Toggle heatwave warnings">
-              <input id="mobileShowHeatwaveWarnings" type="checkbox" checked />
-              <span class="dot"></span>
-              <span class="heatwave-label">Heatwave on</span>
-            </label>
           </div>
-        </details>
+          <div class="mobile-field">
+            <label class="small" for="mobileSeverityFilter">Wind</label>
+            <select id="mobileSeverityFilter">
+              <option value="all">All</option>
+              <option value="warning">High</option>
+              <option value="danger">Very high</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mobile-search">
+          <label class="small" for="mobileTextFilter">Search</label>
+          <div class="mobile-search-row">
+            <input id="mobileTextFilter" placeholder="Find a park…" />
+            <button id="mobileRefreshBtn" class="mobile-refresh-btn" type="button">Refresh</button>
+          </div>
+        </div>
+
+        <div class="mobile-toggle-row">
+          <label class="toggle wx" title="Filter to parks with active weather alerts">
+            <input id="mobileShowWxWarnings" type="checkbox" />
+            <span class="dot"></span>
+            Alerts only
+          </label>
+          <label class="toggle warn" title="Toggle heatwave warnings">
+            <input id="mobileShowHeatwaveWarnings" type="checkbox" checked />
+            <span class="dot"></span>
+            <span class="heatwave-label">Heatwave on</span>
+          </label>
+        </div>
 
         <div id="mobileStatus" class="small muted mobile-status"></div>
       </div>
@@ -1688,18 +1701,19 @@
     const total = rows.length;
     const danger = rows.filter(r => r.severity === 'danger').length;
     const warning = rows.filter(r => r.severity === 'warning').length;
-    const ok = rows.filter(r => r.loaded && (r.severity === 'ok')).length;
-    const missing = rows.filter(r => r.loaded && r.severity === 'none').length;
     const weatherWarn = rows.filter(r => warningsForRow(r).length > 0).length;
 
-    els.stats.innerHTML = [
-      `<span class="chip"><b>${total}</b> parks</span>`,
-      `<span class="chip"><b>${ok}</b> OK</span>`,
-      `<span class="chip"><b>${missing}</b> no gust data</span>`,
-      `<span class="chip"><b style="color:var(--warning)">${warning}</b> High &gt;= ${WARNING_KMH}</span>`,
-      `<span class="chip"><b style="color:var(--danger)">${danger}</b> Very high &gt;= ${DANGER_KMH}</span>`,
-      `<span class="chip"><b style="color:var(--danger)">${weatherWarn}</b> weather alerts</span>`
-    ].join('');
+    els.stats.innerHTML = `
+      <div class="stats-line">
+        <span><b>${total}</b> parks</span>
+        <span class="summary-dot">•</span>
+        <span><b style="color:var(--danger)">${danger}</b> very high</span>
+        <span class="summary-dot">•</span>
+        <span><b style="color:var(--warning)">${warning}</b> high</span>
+        <span class="summary-dot">•</span>
+        <span><b>${weatherWarn}</b> alerts</span>
+      </div>
+    `;
   }
 
   function getFilterSummaryParts(){
@@ -1728,6 +1742,17 @@
     return parts;
   }
 
+  function formatFilterSummaryPart(part){
+    if (!part) return '';
+    const label = String(part.label || '').trim();
+    const value = String(part.value || '').trim();
+    if (!label) return value;
+    if (label === 'Alerts' && value.toLowerCase() === 'alerts only') return 'Alerts only';
+    if (label === 'Heatwave' && value) return `Heatwave ${value.toLowerCase()}`;
+    if (!value) return label;
+    return `${label}: ${value}`;
+  }
+
   function renderFilterSummary(){
     if (!els.filterSummary) return;
     const parts = getFilterSummaryParts();
@@ -1751,11 +1776,11 @@
 
     const parts = getFilterSummaryParts();
     const filterText = parts.length
-      ? `Filters: ${parts.map(p => `${escapeHtml(p.label)} ${escapeHtml(p.value)}`).join(' • ')}`
+      ? `Filters: ${parts.map(p => escapeHtml(formatFilterSummaryPart(p))).join(' • ')}`
       : 'No filters applied.';
 
     const resetLink = parts.length
-      ? `<button id="mobileResetLink" class="link-btn" type="button">Reset filters</button>`
+      ? `<a id="mobileResetLink" class="link-btn" href="#">Reset filters</a>`
       : '';
 
     els.mobileSummary.innerHTML = `
@@ -2803,6 +2828,7 @@
     els.mobileSummary.addEventListener('click', (e) => {
       const btn = e.target.closest('#mobileResetLink');
       if (!btn) return;
+      e.preventDefault();
       resetFilters();
     });
   }
