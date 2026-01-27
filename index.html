@@ -243,6 +243,17 @@
     .current-col{min-width:88px;}
     .updated-col{min-width:88px;}
 
+    td.hour-cell,
+    td.current-col{
+      position:relative;
+    }
+    td.hour-cell:hover,
+    td.hour-cell:focus-within,
+    td.current-col:hover,
+    td.current-col:focus-within{
+      z-index:5;
+    }
+
     .dangerCell{color:var(--danger); font-weight:800;}
     .warningCell{color:var(--warning); font-weight:800;}
     .okCell{color:var(--ok); font-weight:700;}
