@@ -513,7 +513,7 @@
   const WARNING_TOOLTIP = 'Trees 13m or greater: Advise all park occupants to limit time spent in fall zones with no protection factors';
   const DANGER_TOOLTIP = 'Trees 6-12m: Advise all park occupants to limit time spent in fall zones with no protection factors. Trees 13m or greater: Create exclusion zone of tree height +50% for fall zones with no protection factors';
   const IMPORTANT_WARNING_GROUPS = new Set(['major', 'moderate']);
-  const IMPORTANT_WARNING_LABEL = 'major and moderate alerts only';
+  const IMPORTANT_WARNING_LABEL = 'major and moderate alerts only (cancellations hidden)';
   const STATE_NAMES = {
     NSW: 'new south wales',
     ACT: 'australian capital territory',
@@ -1099,6 +1099,7 @@
   }
 
   const HEATWAVE_WARNING_RE = /\bheat\s*wave\b/i;
+  const CANCELLATION_WARNING_RE = /\bcancel(?:led|lation)\b/i;
 
   function isHeatwaveWarning(warn){
     const fields = [
@@ -1110,6 +1111,18 @@
       warn?.headline,
     ];
     return fields.some(v => typeof v === 'string' && HEATWAVE_WARNING_RE.test(v));
+  }
+
+  function isCancellationWarning(warn){
+    const fields = [
+      warn?.short_title,
+      warn?.title,
+      warn?.headline,
+      warn?.type_description,
+      warn?.warning_type,
+      warn?.type,
+    ];
+    return fields.some(v => typeof v === 'string' && CANCELLATION_WARNING_RE.test(v));
   }
 
   function filterHeatwaveWarnings(list){
@@ -1640,6 +1653,7 @@
   }
 
   function isImportantWarning(warn){
+    if (isCancellationWarning(warn)) return false;
     const group = String(warn?.warning_group_type || '').toLowerCase();
     if (!group) return true;
     return IMPORTANT_WARNING_GROUPS.has(group);
@@ -1967,6 +1981,8 @@
       heatwaveWarningsEnabled = false;
       assert('heatwave filter off', warningsForRow(warnRow).length === 1);
       heatwaveWarningsEnabled = prevHeatwave;
+
+      assert('cancellation hidden', isImportantWarning({ title: 'Cancellation of Flood Warning' }) === false);
 
       severityFilter = 'warning';
       assert('warning includes danger', filteredRows().length === 2);
