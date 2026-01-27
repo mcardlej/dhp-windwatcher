@@ -478,6 +478,7 @@
     .mobile-gust{display:flex; flex-direction:column; gap:2px;}
     .mobile-gust-value{font-size:20px; font-weight:800;}
     .mobile-gust-label{font-size:11px; color:var(--muted);}
+    .mobile-peaks{display:flex; gap:12px; align-items:flex-end; margin-left:auto;}
     .mobile-peak{display:flex; flex-direction:column; gap:2px; text-align:right;}
     .mobile-peak-value{font-size:14px; font-weight:700;}
     .mobile-peak-label{font-size:11px; color:var(--muted);}
@@ -1930,11 +1931,16 @@
               <div class="mobile-gust-value">${escapeHtml(formatKmh(currentVal))}</div>
               <div class="mobile-gust-label">Current gust</div>
             </div>
-            <div class="mobile-peak">
-              <div class="mobile-peak-value">${escapeHtml(formatKmh(peakShort))}</div>
-              <div class="mobile-peak-label">Next ${MOBILE_PEAK_COUNT}h peak</div>
+            <div class="mobile-peaks">
+              <div class="mobile-peak">
+                <div class="mobile-peak-value ${mobileCellClassFor(peakShort)}">${escapeHtml(formatKmh(peakShort))}</div>
+                <div class="mobile-peak-label">Next ${MOBILE_PEAK_COUNT}h peak</div>
+              </div>
+              <div class="mobile-peak">
+                <div class="mobile-peak-value ${mobileCellClassFor(peakAll)}">${escapeHtml(formatKmh(peakAll))}</div>
+                <div class="mobile-peak-label">Next 12h peak</div>
+              </div>
             </div>
-            <div class="mobile-updated">Next 12h ${escapeHtml(formatKmh(peakAll))}</div>
           </div>
           <details class="mobile-details">
             <summary>More details</summary>
