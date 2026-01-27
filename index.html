@@ -311,6 +311,7 @@
     .icon-btn{display:inline-flex; align-items:center; justify-content:center; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px; font-size:14px; font-weight:600; cursor:pointer; color:var(--text)}
     .icon-btn:hover{border-color:#8aa4d6;}
     .refresh-btn{display:inline-flex; align-items:center; gap:6px; padding:10px 12px;}
+    .refresh-text{display:inline;}
 
     .theme-toggle{position:relative; display:inline-flex; align-items:center; justify-content:center; padding:10px; background:var(--card); border:1px solid var(--line); border-radius:10px; cursor:pointer; color:var(--text); user-select:none}
     .theme-toggle:hover{border-color:#8aa4d6;}
@@ -486,6 +487,9 @@
       .mobile-only{display:block;}
       .mobile-summary{display:flex;}
       .mobile-list{display:flex;}
+      .header-actions{gap:6px;}
+      .refresh-btn{padding:10px; gap:0;}
+      .refresh-text{display:none;}
     }
 </style>
 </head>
@@ -522,7 +526,7 @@
           </label>
           <button id="refreshBtn" class="icon-btn refresh-btn" type="button" title="Refresh" aria-label="Refresh">
             <span aria-hidden="true">↻</span>
-            <span>Refresh</span>
+            <span class="refresh-text">Refresh</span>
           </button>
         </div>
       </div>
