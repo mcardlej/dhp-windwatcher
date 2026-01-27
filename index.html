@@ -390,7 +390,6 @@
     .mobile-search{display:flex; flex-direction:column; gap:6px;}
     .mobile-search-row{display:flex; gap:8px; align-items:stretch;}
     .mobile-search-row input{flex:1 1 auto; min-width:0;}
-    .mobile-refresh-btn{padding:10px 12px; font-size:13px; border-radius:10px; white-space:nowrap;}
     .mobile-search input{width:100%;}
     .mobile-row{display:flex; flex-wrap:wrap; gap:8px;}
     .mobile-row > *{flex:1 1 0; min-width:0;}
@@ -421,14 +420,14 @@
       font-size:12px;
       font-weight:400;
       cursor:pointer;
-      text-decoration:underline;
-      text-underline-offset:2px;
+      text-decoration:none;
     }
-    .link-btn:hover{text-decoration-thickness:2px;}
+    .link-btn:hover{color:var(--muted);}
     .link-btn:focus-visible{outline:2px solid rgba(138,164,214,.45); outline-offset:2px; border-radius:4px;}
 
     .stats-line{display:flex; flex-wrap:wrap; gap:6px; align-items:center; color:var(--muted); font-size:13px;}
     .stats-line b{color:var(--text); font-weight:700;}
+    .filter-reset-link{margin-left:auto;}
 
     .mobile-list{flex-direction:column; gap:12px;}
     .mobile-card{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px; display:flex; flex-direction:column; gap:10px;}
@@ -505,6 +504,7 @@
               </svg>
             </span>
           </label>
+          <button id="refreshBtn" class="icon-btn" type="button" title="Refresh" aria-label="Refresh">↻</button>
         </div>
       </div>
     </div>
@@ -558,7 +558,6 @@
           <label class="small" for="mobileTextFilter">Search</label>
           <div class="mobile-search-row">
             <input id="mobileTextFilter" placeholder="Find a park…" />
-            <button id="mobileRefreshBtn" class="mobile-refresh-btn" type="button">Refresh</button>
           </div>
         </div>
 
@@ -635,8 +634,6 @@
 
       <div class="controls-right">
         <span id="status" class="small"></span>
-        <button id="resetFiltersBtn" type="button">Reset filters</button>
-        <button id="refreshBtn" type="button">↻ Refresh</button>
       </div>
     </div>
 
@@ -879,7 +876,6 @@
     mobileSeverityFilter: document.getElementById('mobileSeverityFilter'),
     mobileShowWxWarnings: document.getElementById('mobileShowWxWarnings'),
     mobileShowHeatwaveWarnings: document.getElementById('mobileShowHeatwaveWarnings'),
-    mobileRefreshBtn: document.getElementById('mobileRefreshBtn'),
     mobileResetFiltersBtn: document.getElementById('mobileResetFiltersBtn'),
     mobileInfoBtn: document.getElementById('mobileInfoBtn'),
     mobileDarkModeToggle: document.getElementById('mobileDarkModeToggle'),
@@ -1730,9 +1726,12 @@
       return;
     }
 
+    const resetLink = `<a id="desktopResetLink" class="link-btn filter-reset-link" href="#">Reset filters</a>`;
+
     els.filterSummary.innerHTML = [
       '<span class="small muted">Filters:</span>',
-      ...parts.map(p => `<span class="filter-chip"><b>${escapeHtml(p.label)}:</b> ${escapeHtml(p.value)}</span>`)
+      ...parts.map(p => `<span class="filter-chip"><b>${escapeHtml(p.label)}:</b> ${escapeHtml(p.value)}</span>`),
+      resetLink
     ].join('');
   }
 
@@ -2697,6 +2696,15 @@
     });
   }
 
+  if (els.filterSummary) {
+    els.filterSummary.addEventListener('click', (e) => {
+      const btn = e.target.closest('#desktopResetLink');
+      if (!btn) return;
+      e.preventDefault();
+      resetFilters();
+    });
+  }
+
   if (els.severityFilter) {
     els.severityFilter.addEventListener('change', () => {
       const val = String(els.severityFilter.value || '').toLowerCase();
@@ -2796,9 +2804,6 @@
     refreshData();
   });
 
-  if (els.mobileRefreshBtn) {
-    els.mobileRefreshBtn.addEventListener('click', refreshData);
-  }
 
   // Initial
   try {
