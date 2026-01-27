@@ -58,18 +58,19 @@
     .wrap{padding:14px 18px 22px; max-width:100%; width:100%; margin:0 auto;}
     .header-wrap{padding:0;}
 
-    .title-row{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;}
-    .title-left{display:flex; align-items:center; gap:12px; min-width:0;}
+    .title-row{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:nowrap;}
+    .title-left{display:flex; align-items:center; gap:10px; min-width:0; flex:1 1 auto;}
     .header-actions{display:flex; align-items:center; gap:10px; margin-left:auto;}
-    .title-logo{height:38px; width:auto; display:block;}
-    .title-text{display:flex; flex-direction:column; gap:2px;}
-    h1{margin:0;font-size:20px; font-weight:800; letter-spacing:-0.2px; line-height:1.05}
-    h2{margin:0;font-size:16px; font-weight:750; letter-spacing:-0.1px; line-height:1.1; color:var(--muted)}
+    .header-actions{flex:0 0 auto; white-space:nowrap;}
+    .title-logo{height:34px; width:auto; display:block;}
+    .title-text{display:flex; flex-direction:column; gap:2px; min-width:0;}
+    h1{margin:0;font-size:18px; font-weight:800; letter-spacing:-0.2px; line-height:1.05; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    h2{margin:0;font-size:14px; font-weight:750; letter-spacing:-0.1px; line-height:1.1; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 
     .controls{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:12px 0 14px; justify-content:space-between;}
     .controls-left{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
     .controls-right{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
-    .filter-summary{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:4px 0 12px;}
+    .filter-summary{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:4px 0 12px;}
     .filter-chip{background:var(--chip); border:1px dashed var(--line); border-radius:999px; padding:4px 8px; font-size:12px; color:var(--muted)}
     .filter-chip b{color:var(--text); font-weight:700}
 
@@ -309,6 +310,7 @@
     /* Info button + modal */
     .icon-btn{display:inline-flex; align-items:center; justify-content:center; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px; font-size:14px; font-weight:600; cursor:pointer; color:var(--text)}
     .icon-btn:hover{border-color:#8aa4d6;}
+    .refresh-btn{display:inline-flex; align-items:center; gap:6px; padding:10px 12px;}
 
     .theme-toggle{position:relative; display:inline-flex; align-items:center; justify-content:center; padding:10px; background:var(--card); border:1px solid var(--line); border-radius:10px; cursor:pointer; color:var(--text); user-select:none}
     .theme-toggle:hover{border-color:#8aa4d6;}
@@ -441,7 +443,7 @@
 
     .stats-line{display:flex; flex-wrap:wrap; gap:6px; align-items:center; color:var(--muted); font-size:13px;}
     .stats-line b{color:var(--text); font-weight:700;}
-    .filter-reset-link{margin-left:auto;}
+    .filter-reset-link{margin-left:auto; padding-left:12px;}
 
     .mobile-list{flex-direction:column; gap:12px;}
     .mobile-card{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px; display:flex; flex-direction:column; gap:10px;}
@@ -475,16 +477,15 @@
     @media (max-width: 900px){
       header{padding:10px 14px 6px;}
       .wrap{padding:12px 14px 18px;}
-      h1{font-size:18px;}
-      h2{font-size:14px;}
-      .title-logo{height:32px;}
+      h1{font-size:16px;}
+      h2{font-size:12px;}
+      .title-logo{height:28px;}
       .toggle{padding:6px 10px; font-size:12px;}
       select,input,button{font-size:13px;}
       .desktop-only{display:none !important;}
       .mobile-only{display:block;}
       .mobile-summary{display:flex;}
       .mobile-list{display:flex;}
-      .header-actions{width:100%; justify-content:flex-end;}
     }
 </style>
 </head>
@@ -519,7 +520,10 @@
               </svg>
             </span>
           </label>
-          <button id="refreshBtn" class="icon-btn desktop-only" type="button" title="Refresh" aria-label="Refresh">Refresh</button>
+          <button id="refreshBtn" class="icon-btn refresh-btn" type="button" title="Refresh" aria-label="Refresh">
+            <span aria-hidden="true">↻</span>
+            <span>Refresh</span>
+          </button>
         </div>
       </div>
     </div>
@@ -589,10 +593,6 @@
               <span class="heatwave-label">Heatwave on</span>
             </label>
           </div>
-          <button id="mobileRefreshBtn" class="mobile-refresh-btn" type="button">
-            <span aria-hidden="true">↻</span>
-            <span>Refresh</span>
-          </button>
         </div>
 
         <div id="mobileStatus" class="small muted mobile-status"></div>
@@ -897,7 +897,6 @@
     mobileSeverityFilter: document.getElementById('mobileSeverityFilter'),
     mobileShowWxWarnings: document.getElementById('mobileShowWxWarnings'),
     mobileShowHeatwaveWarnings: document.getElementById('mobileShowHeatwaveWarnings'),
-    mobileRefreshBtn: document.getElementById('mobileRefreshBtn'),
     mobileResetFiltersBtn: document.getElementById('mobileResetFiltersBtn'),
     mobileInfoBtn: document.getElementById('mobileInfoBtn'),
     mobileDarkModeToggle: document.getElementById('mobileDarkModeToggle'),
@@ -2825,10 +2824,6 @@
   els.refreshBtn.addEventListener('click', () => {
     refreshData();
   });
-
-  if (els.mobileRefreshBtn) {
-    els.mobileRefreshBtn.addEventListener('click', refreshData);
-  }
 
 
   // Initial
