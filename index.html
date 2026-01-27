@@ -375,12 +375,12 @@
     .mobile-advanced[open] summary::before{content:"-";}
     .mobile-advanced-body{margin-top:8px; display:flex; flex-direction:column; gap:8px;}
 
-    .mobile-summary{display:flex; flex-direction:column; gap:6px; margin:4px 0 12px; color:var(--muted); font-size:12px;}
+    .mobile-summary{flex-direction:column; gap:6px; margin:4px 0 12px; color:var(--muted); font-size:12px;}
     .mobile-summary .strong{color:var(--text); font-weight:700;}
     .mobile-summary .summary-row{display:flex; flex-wrap:wrap; gap:6px; align-items:center;}
     .mobile-summary .summary-dot{opacity:.5;}
 
-    .mobile-list{display:flex; flex-direction:column; gap:12px;}
+    .mobile-list{flex-direction:column; gap:12px;}
     .mobile-card{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px; display:flex; flex-direction:column; gap:10px;}
     .mobile-card[data-severity="danger"]{border-color:rgba(217,45,32,.45);}
     .mobile-card[data-severity="warning"]{border-color:rgba(217,119,6,.45);}
