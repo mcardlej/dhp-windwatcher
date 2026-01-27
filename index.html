@@ -202,7 +202,13 @@
     }
 
     /* Cell hover tooltip (reuse badge tooltip style) */
-    .cell-tooltip[data-tooltip]{position:relative; cursor:help; display:inline-flex; align-items:baseline;}
+    .cell-tooltip[data-tooltip]{
+      position:relative;
+      cursor:help;
+      display:inline-flex;
+      align-items:baseline;
+      z-index:200;
+    }
     .cell-tooltip[data-tooltip]::after{
       content: attr(data-tooltip);
       position:absolute;
@@ -224,27 +230,11 @@
       pointer-events:none;
       transform:translateY(4px);
       transition:opacity .15s ease, transform .15s ease;
-      z-index:20;
+      z-index:300;
       text-align:left;
     }
-    .cell-tooltip[data-tooltip]::before{
-      content:"";
-      position:absolute;
-      left:12px;
-      top:100%;
-      border-width:0 6px 6px 6px;
-      border-style:solid;
-      border-color:transparent transparent var(--card) transparent;
-      opacity:0;
-      pointer-events:none;
-      transform:translateY(4px);
-      transition:opacity .15s ease, transform .15s ease;
-      z-index:19;
-    }
     .cell-tooltip[data-tooltip]:hover::after,
-    .cell-tooltip[data-tooltip]:focus-visible::after,
-    .cell-tooltip[data-tooltip]:hover::before,
-    .cell-tooltip[data-tooltip]:focus-visible::before{
+    .cell-tooltip[data-tooltip]:focus-visible::after{
       opacity:1;
       transform:translateY(0);
     }
