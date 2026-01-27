@@ -132,7 +132,20 @@
     .row-top{display:block;}
     .park-name{display:flex; align-items:center; gap:8px; min-width:0;}
     .park-name b{flex:0 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-    .badge{display:inline-flex; gap:6px; align-items:center; font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); white-space:nowrap; flex:0 0 auto}
+    .badge{
+      display:inline-flex;
+      gap:6px;
+      align-items:center;
+      font-size:11px;
+      padding:3px 8px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      color:var(--muted);
+      white-space:nowrap;
+      flex:0 0 auto;
+      position:relative;
+      z-index:200;
+    }
     .badge.warning{border-color:rgba(217,119,6,.55); color:var(--warning)}
     .badge.danger{border-color:rgba(217,45,32,.55); color:var(--danger)}
     .weather-warning-btn{display:inline-flex; align-items:center; gap:6px; border-radius:999px; border:1px solid rgba(217,45,32,.55); background:var(--dangerFlashBg); color:var(--danger); padding:3px 8px; font-size:11px; font-weight:700; cursor:pointer; flex:0 0 auto}
@@ -176,7 +189,7 @@
       pointer-events:none;
       transform:translateY(4px);
       transition:opacity .15s ease, transform .15s ease;
-      z-index:20;
+      z-index:400;
       text-align:left;
     }
     .badge[data-tooltip]::before{
@@ -191,7 +204,7 @@
       pointer-events:none;
       transform:translateY(4px);
       transition:opacity .15s ease, transform .15s ease;
-      z-index:19;
+      z-index:399;
     }
     .badge[data-tooltip]:hover::after,
     .badge[data-tooltip]:focus-visible::after,
