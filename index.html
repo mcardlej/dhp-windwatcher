@@ -335,6 +335,9 @@
     .warning-card-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;}
     .warning-card-title{font-size:14px; font-weight:800; margin:0;}
     .warning-card-area{font-size:12px; color:var(--muted); margin-top:4px;}
+    .warning-card-areas{font-size:12px; color:var(--muted); margin-top:4px;}
+    .warning-card-areas span{display:inline;}
+    .warning-card-areas span + span::before{content:"•"; margin:0 6px; color:var(--line);}
     .warning-chip-row{display:flex; flex-wrap:wrap; gap:6px;}
     .warning-chip{display:inline-flex; align-items:center; border-radius:999px; padding:3px 8px; font-size:11px; border:1px solid var(--line); color:var(--muted); text-transform:capitalize;}
     .warning-chip.type{border-color:var(--wxBorder); color:var(--wx); background:var(--wxBg);}
@@ -342,6 +345,8 @@
     .warning-chip.group-moderate{border-color:rgba(217,119,6,.4); color:var(--warning);}
     .warning-chip.group-minor{border-color:rgba(15,118,110,.35); color:var(--ok);}
     .warning-meta{display:flex; flex-wrap:wrap; gap:10px; font-size:12px; color:var(--muted); margin-top:8px;}
+    .warning-subsection + .warning-subsection{margin-top:12px; padding-top:12px; border-top:1px dashed var(--line);}
+    .warning-subtitle{margin:8px 0 6px; font-size:12px; font-weight:700; color:var(--text);}
     .warning-details{margin-top:10px; border-top:1px solid var(--line); padding-top:8px;}
     .warning-details summary{cursor:pointer; color:var(--wx); font-weight:700; font-size:12px; list-style:none; display:flex; align-items:center; gap:6px;}
     .warning-details summary::-webkit-details-marker{display:none;}
@@ -1152,6 +1157,32 @@
     return filterHeatwaveWarnings(row?.weatherWarnings);
   }
 
+  function groupWarningsForDisplay(list){
+    const groups = [];
+    const heatwaveGroups = new Map();
+    const items = Array.isArray(list) ? list : [];
+
+    items.forEach(w => {
+      if (!w) return;
+      if (isHeatwaveWarning(w)) {
+        const groupType = String(w.warning_group_type || '').trim().toLowerCase();
+        const typeKey = String(w.type || w.warning_type || '').trim().toLowerCase() || 'heatwave';
+        const key = `heatwave|${groupType}|${typeKey}`;
+        let group = heatwaveGroups.get(key);
+        if (!group) {
+          group = { isHeatwave: true, warnings: [] };
+          heatwaveGroups.set(key, group);
+          groups.push(group);
+        }
+        group.warnings.push(w);
+        return;
+      }
+      groups.push({ isHeatwave: false, warnings: [w] });
+    });
+
+    return groups;
+  }
+
   function formatDateTime(ts, state){
     if (!ts) return '—';
     const d = new Date(ts);
@@ -1415,8 +1446,12 @@
     const warnings = warningsForRow(row);
     const ids = warnings.map(w => w?.id).filter(Boolean);
     if (!ids.length) return '';
-    const count = ids.length;
-    const label = `Weather alert${count > 1 ? 's' : ''} for ${row.name} (${count})`;
+    const groups = groupWarningsForDisplay(warnings);
+    const count = groups.length;
+    const total = ids.length;
+    const label = (total === count)
+      ? `Weather alert${count > 1 ? 's' : ''} for ${row.name} (${count})`
+      : `Weather alerts for ${row.name} (${total} alerts grouped)`;
     const idsAttr = escapeHtml(ids.join(','));
     const nameAttr = escapeHtml(row.name || '');
     const stateAttr = escapeHtml(row.state || '');
@@ -2024,6 +2059,134 @@
     }
   }
 
+  function warningShortTitle(warn, detail){
+    return detail?.short_title || warn?.short_title || detail?.title || warn?.title || 'Weather alert';
+  }
+
+  function warningAreaTitle(warn, detail){
+    return detail?.title || warn?.title || '';
+  }
+
+  function warningTypeLabel(warn, detail){
+    return formatWarningType(detail?.type || warn?.type || detail?.warning_type || warn?.warning_type);
+  }
+
+  function warningGroupLabels(warnings){
+    const out = [];
+    (warnings || []).forEach(w => {
+      const label = String(w?.warning_group_type || '').toLowerCase();
+      if (!label || out.includes(label)) return;
+      out.push(label);
+    });
+    return out;
+  }
+
+  function renderWarningMeta(detail, warn, state){
+    const issue = detail?.issue_time || warn?.issue_time || '';
+    const expiry = detail?.expiry_time || warn?.expiry_time || '';
+    const phase = detail?.phase || warn?.phase || '';
+    const metaParts = [];
+    if (issue) metaParts.push(`Issued ${formatDateTime(issue, state)}`);
+    if (expiry) metaParts.push(`Expires ${formatDateTime(expiry, state)}`);
+    if (phase) metaParts.push(`Status: ${phase}`);
+    return metaParts.length
+      ? metaParts.map(m => `<span>${escapeHtml(m)}</span>`).join('')
+      : '<span>Timing details not available.</span>';
+  }
+
+  function renderWarningMessage(detail){
+    const messageHtml = detail?.message ? sanitizeWarningHtml(detail.message) : '';
+    return messageHtml
+      ? `<div class="warning-message">${messageHtml}</div>`
+      : `<div class="warning-message muted">No detailed message is available for this alert.</div>`;
+  }
+
+  function renderWarningCardSingle(warn, detail, state){
+    const shortTitle = warningShortTitle(warn, detail);
+    const areaTitle = warningAreaTitle(warn, detail);
+    const groupLabel = String(warn?.warning_group_type || '').toLowerCase();
+    const groupClass = groupLabel ? `group-${groupLabel.replace(/[^a-z0-9-]/g, '')}` : '';
+    const typeLabel = warningTypeLabel(warn, detail);
+    const chips = [];
+    if (typeLabel) chips.push(`<span class="warning-chip type">${escapeHtml(typeLabel)}</span>`);
+    if (groupLabel) chips.push(`<span class="warning-chip ${groupClass}">${escapeHtml(groupLabel)}</span>`);
+    const metaHtml = renderWarningMeta(detail, warn, state);
+    const messageBlock = renderWarningMessage(detail);
+
+    return `
+      <article class="warning-card">
+        <div class="warning-card-head">
+          <div>
+            <div class="warning-card-title">${escapeHtml(shortTitle)}</div>
+            ${areaTitle ? `<div class="warning-card-area">${escapeHtml(areaTitle)}</div>` : ''}
+          </div>
+          <div class="warning-chip-row">${chips.join('')}</div>
+        </div>
+        <details class="warning-details">
+          <summary>Show details</summary>
+          <div class="warning-meta">${metaHtml}</div>
+          ${messageBlock}
+        </details>
+      </article>
+    `;
+  }
+
+  function renderHeatwaveGroupCard(warnings, detailById, state){
+    const first = warnings[0] || {};
+    const firstDetail = detailById.get(first.id) || {};
+    const shortTitle = warningShortTitle(first, firstDetail);
+    const typeLabel = warningTypeLabel(first, firstDetail);
+    const groupLabels = warningGroupLabels(warnings);
+    const chips = [];
+    if (typeLabel) chips.push(`<span class="warning-chip type">${escapeHtml(typeLabel)}</span>`);
+    groupLabels.forEach(label => {
+      const groupClass = `group-${label.replace(/[^a-z0-9-]/g, '')}`;
+      chips.push(`<span class="warning-chip ${groupClass}">${escapeHtml(label)}</span>`);
+    });
+
+    const areaTitles = warnings
+      .map(w => warningAreaTitle(w, detailById.get(w.id) || {}))
+      .map(s => String(s || '').trim())
+      .filter(Boolean);
+    const uniqueAreas = Array.from(new Set(areaTitles));
+    const areaHtml = uniqueAreas.length
+      ? `<div class="warning-card-areas">${uniqueAreas.map(a => `<span>${escapeHtml(a)}</span>`).join('')}</div>`
+      : '';
+
+    const detailBlocks = warnings.map(w => {
+      const detail = detailById.get(w.id) || {};
+      const areaTitle = warningAreaTitle(w, detail);
+      const metaHtml = renderWarningMeta(detail, w, state);
+      const messageBlock = renderWarningMessage(detail);
+      const subtitle = areaTitle ? `<div class="warning-subtitle">${escapeHtml(areaTitle)}</div>` : '';
+      return `
+        <div class="warning-subsection">
+          ${subtitle}
+          <div class="warning-meta">${metaHtml}</div>
+          ${messageBlock}
+        </div>
+      `;
+    }).join('');
+
+    const summaryLabel = warnings.length > 1 ? `Show details (${warnings.length})` : 'Show details';
+
+    return `
+      <article class="warning-card">
+        <div class="warning-card-head">
+          <div>
+            <div class="warning-card-title">${escapeHtml(shortTitle)}</div>
+            ${areaHtml}
+          </div>
+          <div class="warning-chip-row">${chips.join('')}</div>
+        </div>
+        <details class="warning-details">
+          <summary>${summaryLabel}</summary>
+          ${detailBlocks}
+        </details>
+      </article>
+    `;
+  }
+
   function renderWarningModal(parkName, state, warnings, details){
     const detailById = new Map();
     (details || []).forEach(d => { if (d?.id) detailById.set(d.id, d); });
@@ -2034,52 +2197,25 @@
       `Showing ${IMPORTANT_WARNING_LABEL}.`,
     ];
     if (!heatwaveWarningsEnabled) summaryParts.push('Heatwave alerts hidden by filter.');
+    const warningGroups = groupWarningsForDisplay(warnings);
+    const mergedHeatwaveGroups = warningGroups.filter(g => g.isHeatwave && g.warnings.length > 1);
+    if (mergedHeatwaveGroups.length) {
+      summaryParts.push('Heatwave alerts for multiple forecast districts are merged into single cards.');
+    }
     const summary = `<p class="small muted">${summaryParts.join(' ')}</p>`;
 
-    const cards = (warnings || []).map(w => {
-      const detail = detailById.get(w.id) || {};
-      const shortTitle = detail.short_title || w.short_title || w.title || 'Weather alert';
-      const areaTitle = detail.title || w.title || '';
-      const group = String(w.warning_group_type || '').toLowerCase();
-      const groupClass = group ? `group-${group.replace(/[^a-z0-9-]/g, '')}` : '';
-      const typeLabel = formatWarningType(detail.type || w.type);
-      const phase = detail.phase || w.phase || '';
-
-      const chips = [];
-      if (typeLabel) chips.push(`<span class="warning-chip type">${escapeHtml(typeLabel)}</span>`);
-      if (group) chips.push(`<span class="warning-chip ${groupClass}">${escapeHtml(group)}</span>`);
-
-      const issue = detail.issue_time || w.issue_time || '';
-      const expiry = detail.expiry_time || w.expiry_time || '';
-      const metaParts = [];
-      if (issue) metaParts.push(`Issued ${formatDateTime(issue, state)}`);
-      if (expiry) metaParts.push(`Expires ${formatDateTime(expiry, state)}`);
-      if (phase) metaParts.push(`Status: ${phase}`);
-      const metaHtml = metaParts.length
-        ? metaParts.map(m => `<span>${escapeHtml(m)}</span>`).join('')
-        : '<span>Timing details not available.</span>';
-
-      const messageHtml = detail.message ? sanitizeWarningHtml(detail.message) : '';
-      const messageBlock = messageHtml
-        ? `<div class="warning-message">${messageHtml}</div>`
-        : `<div class="warning-message muted">No detailed message is available for this alert.</div>`;
-
-      return `
-        <article class="warning-card">
-          <div class="warning-card-head">
-            <div>
-              <div class="warning-card-title">${escapeHtml(shortTitle)}</div>
-              ${areaTitle ? `<div class="warning-card-area">${escapeHtml(areaTitle)}</div>` : ''}
-            </div>
-            <div class="warning-chip-row">${chips.join('')}</div>
-          </div>
-          <details class="warning-details">
-            <summary>Show details</summary>
-            <div class="warning-meta">${metaHtml}</div>
-            ${messageBlock}
-          </details>
-        </article>
-      `;
+    const cards = warningGroups.map(group => {
+      if (!group || !Array.isArray(group.warnings) || !group.warnings.length) return '';
+      if (group.isHeatwave && group.warnings.length > 1) {
+        return renderHeatwaveGroupCard(group.warnings, detailById, state);
+      }
+      if (group.warnings.length === 1) {
+        const warn = group.warnings[0];
+        return renderWarningCardSingle(warn, detailById.get(warn.id) || {}, state);
+      }
+      return group.warnings
+        .map(w => renderWarningCardSingle(w, detailById.get(w.id) || {}, state))
+        .join('');
     }).join('');
 
     els.warningBody.innerHTML = `
