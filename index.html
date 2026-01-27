@@ -108,6 +108,9 @@
     th,td{padding:10px 12px; border-bottom:1px solid var(--line); font-size:13px; vertical-align:top}
     th{color:var(--muted); text-align:left; font-weight:600;}
     tr:last-child td{border-bottom:none;}
+    tbody tr{position:relative; z-index:0;}
+    tbody tr:hover,
+    tbody tr:focus-within{z-index:10;}
     .table-disclaimer{padding:10px 12px; border-top:1px solid var(--line);}
 
     .empty-cell{text-align:center;}
